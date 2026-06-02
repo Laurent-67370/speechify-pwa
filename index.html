@@ -2195,31 +2195,57 @@
       });
 
       // ─── #2 IMPORT URL ───────────────────────────────────────────────────────
-      // Liste de proxies CORS en cascade — on essaie dans l'ordre jusqu'au succès
+      // Chaque proxy a sa propre stratégie de parsing
       const CORS_PROXIES = [
-        (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-        (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-        (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-        (url) => `https://cors-anywhere.herokuapp.com/${url}`,
+        {
+          name: 'allorigins',
+          url:  (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+          extract: async (resp) => {
+            const data = await resp.json();
+            return data.contents || null;
+          }
+        },
+        {
+          name: 'corsproxy.io',
+          url:  (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+          extract: async (resp) => resp.text()
+        },
+        {
+          name: 'codetabs',
+          url:  (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+          extract: async (resp) => resp.text()
+        },
+        {
+          name: 'htmldriven',
+          url:  (u) => `https://jsonp.afeld.me/?url=${encodeURIComponent(u)}`,
+          extract: async (resp) => resp.text()
+        },
       ];
 
-      async function _fetchViaProxy(targetUrl) {
+      async function _fetchViaProxy(targetUrl, statusEl) {
         for (let i = 0; i < CORS_PROXIES.length; i++) {
-          const proxyUrl = CORS_PROXIES[i](targetUrl);
+          const proxy = CORS_PROXIES[i];
           try {
-            const resp = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
-            if (!resp.ok) continue;
-            const data = await resp.json().catch(() => null);
-            // allorigins renvoie { contents: '...' }
-            if (data && data.contents) return data.contents;
-            // autres proxies renvoient le HTML directement
-            const text = await resp.text().catch(() => null);
-            if (text && text.length > 200) return text;
+            if (statusEl) statusEl.textContent = `⏳ Proxy ${i+1}/${CORS_PROXIES.length} (${proxy.name})…`;
+            const resp = await fetch(proxy.url(targetUrl), {
+              signal: AbortSignal.timeout(12000)
+            });
+            if (!resp.ok) {
+              console.warn(`[${proxy.name}] HTTP ${resp.status}`);
+              continue;
+            }
+            const html = await proxy.extract(resp);
+            if (!html || html.length < 200 || html.startsWith('Oops') || html.startsWith('Error')) {
+              console.warn(`[${proxy.name}] Réponse invalide :`, (html||'').substring(0,60));
+              continue;
+            }
+            console.log(`[${proxy.name}] ✅ ${html.length} chars`);
+            return html;
           } catch(e) {
-            console.warn(`Proxy ${i+1} échoué :`, e.message);
+            console.warn(`[${proxy.name}] Erreur :`, e.message);
           }
         }
-        throw new Error('Tous les proxies ont échoué. Site peut-être inaccessible ou protégé.');
+        throw new Error('Tous les proxies ont échoué. Site protégé ou inaccessible.');
       }
 
       function _extractTextFromHtml(html, targetUrl) {
@@ -2275,8 +2301,7 @@
         btn.disabled = true;
 
         try {
-          statusEl.textContent = '⏳ Proxy 1/4 en cours…';
-          const html = await _fetchViaProxy(url);
+          const html = await _fetchViaProxy(url, statusEl);
 
           statusEl.textContent = '⏳ Extraction du texte…';
           const { text, title } = _extractTextFromHtml(html, url);
