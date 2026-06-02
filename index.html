@@ -2195,6 +2195,74 @@
       });
 
       // ─── #2 IMPORT URL ───────────────────────────────────────────────────────
+      // Liste de proxies CORS en cascade — on essaie dans l'ordre jusqu'au succès
+      const CORS_PROXIES = [
+        (url) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+        (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+        (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+        (url) => `https://cors-anywhere.herokuapp.com/${url}`,
+      ];
+
+      async function _fetchViaProxy(targetUrl) {
+        for (let i = 0; i < CORS_PROXIES.length; i++) {
+          const proxyUrl = CORS_PROXIES[i](targetUrl);
+          try {
+            const resp = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
+            if (!resp.ok) continue;
+            const data = await resp.json().catch(() => null);
+            // allorigins renvoie { contents: '...' }
+            if (data && data.contents) return data.contents;
+            // autres proxies renvoient le HTML directement
+            const text = await resp.text().catch(() => null);
+            if (text && text.length > 200) return text;
+          } catch(e) {
+            console.warn(`Proxy ${i+1} échoué :`, e.message);
+          }
+        }
+        throw new Error('Tous les proxies ont échoué. Site peut-être inaccessible ou protégé.');
+      }
+
+      function _extractTextFromHtml(html, targetUrl) {
+        const parser = new DOMParser();
+        const doc2   = parser.parseFromString(html, 'text/html');
+
+        // Supprimer les éléments parasites
+        const toRemove = ['script','style','noscript','nav','footer','header',
+          'aside','[role="navigation"]','[role="banner"]','[role="complementary"]',
+          '.menu','.sidebar','.ad','.cookie','.popup','.modal','.newsletter'];
+        toRemove.forEach(sel => {
+          try { doc2.querySelectorAll(sel).forEach(el => el.remove()); } catch(e) {}
+        });
+
+        // Chercher le contenu principal dans l'ordre de priorité
+        const candidates = [
+          'article', 'main', '[role="main"]',
+          '.post-content','.article-body','.entry-content','.article-content',
+          '.post-body','.content-body','.story-body','.article-text',
+          '#content','#main-content','.main-content',
+          'body'
+        ];
+        let mainEl = null;
+        for (const sel of candidates) {
+          const el = doc2.querySelector(sel);
+          if (el) { mainEl = el; break; }
+        }
+
+        let text = (mainEl || doc2.body)?.innerText || (mainEl || doc2.body)?.textContent || '';
+        // Nettoyer
+        text = text
+          .replace(/\t/g, ' ')
+          .replace(/ {2,}/g, ' ')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+
+        // Titre
+        const h1    = doc2.querySelector('h1')?.textContent?.trim();
+        const title = h1 || doc2.title?.trim() || new URL(targetUrl).hostname;
+
+        return { text, title };
+      }
+
       async function importFromUrl(url) {
         const statusEl = $('#url-import-status');
         const btn      = $('#url-import-btn');
@@ -2203,46 +2271,30 @@
           return;
         }
         statusEl.style.display = 'block';
-        statusEl.textContent   = '⏳ Extraction en cours…';
+        statusEl.textContent   = '⏳ Tentative de récupération…';
         btn.disabled = true;
 
         try {
-          // Proxy CORS gratuit
-          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-          const resp     = await fetch(proxyUrl);
-          const data     = await resp.json();
-          const html     = data.contents || '';
+          statusEl.textContent = '⏳ Proxy 1/4 en cours…';
+          const html = await _fetchViaProxy(url);
 
-          if (!html) throw new Error('Contenu vide');
+          statusEl.textContent = '⏳ Extraction du texte…';
+          const { text, title } = _extractTextFromHtml(html, url);
 
-          // Extraire le texte brut depuis le HTML
-          const parser  = new DOMParser();
-          const doc2    = parser.parseFromString(html, 'text/html');
-          // Supprimer scripts, styles, nav, footer
-          ['script','style','nav','footer','header','aside','[role="navigation"]'].forEach(sel => {
-            doc2.querySelectorAll(sel).forEach(el => el.remove());
-          });
-          // Chercher le contenu principal
-          const main = doc2.querySelector('article, main, [role="main"], .post-content, .article-body, .entry-content')
-                    || doc2.body;
-          let text = main ? main.innerText || main.textContent : doc2.body.textContent;
-          text = text.replace(/\s{3,}/g, '\n\n').trim();
+          if (!text || text.length < 80) {
+            throw new Error('Texte trop court — le site est peut-être protégé par JavaScript.');
+          }
 
-          if (text.length < 100) throw new Error('Texte trop court — site peut-être protégé');
-
-          // Titre depuis la page
-          const title = doc2.querySelector('h1')?.textContent?.trim()
-                     || doc2.title?.trim()
-                     || new URL(url).hostname;
-
-          statusEl.textContent = `✅ ${text.split(/\s+/).length} mots extraits`;
+          const wordCount = text.split(/\s+/).length;
+          statusEl.textContent = `✅ ${wordCount} mots extraits — « ${title.substring(0,40)} »`;
           await insertDocToLibrary(title, text, 'web', 'URL');
           $('#url-import-input').value = '';
-          setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+          setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
 
         } catch(err) {
           statusEl.textContent = `❌ ${err.message}`;
-          toast("❌ Import URL échoué : " + err.message);
+          statusEl.style.color = 'var(--color-danger)';
+          toast("❌ Import URL : " + err.message.substring(0, 60));
         } finally {
           btn.disabled = false;
         }
