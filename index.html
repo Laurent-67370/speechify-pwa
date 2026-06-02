@@ -2,23 +2,8 @@
 <html lang="fr" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>SpeechifyPro</title>
-
-  <!-- PWA — Manifest & thème -->
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#6d6cff" />
-  <meta name="mobile-web-app-capable" content="yes" />
-
-  <!-- iOS Safari PWA -->
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="SpeechifyPro" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png" />
-
-  <!-- SEO / description -->
-  <meta name="description" content="Lecteur audio de documents PDF et textes avec surlignage synchronisé" />
-  <meta name="color-scheme" content="dark light" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Speechify Complete Pro Hub</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
@@ -379,6 +364,45 @@
       box-shadow: 0 4px 20px rgba(109,108,255,.4);
     }
     .zen-btn-play:hover { background: var(--color-primary-hover) !important; }
+
+    /* --- CARROUSEL DOCS (Home) --- */
+    .home-carousel { position: relative; margin-bottom: var(--space-4); }
+    .carousel-track {
+      display: flex; gap: var(--space-3);
+      overflow-x: auto; scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none; padding-bottom: 2px;
+    }
+    .carousel-track::-webkit-scrollbar { display: none; }
+    .carousel-doc-card {
+      min-width: calc(100% - 2rem); scroll-snap-align: center;
+      background: var(--color-surface); border: 1.5px solid var(--color-border);
+      border-radius: var(--radius-xl); padding: var(--space-4); flex-shrink: 0;
+      transition: border-color 180ms; cursor: pointer;
+    }
+    .carousel-doc-card.active-doc { border-color: var(--color-primary); }
+    .carousel-doc-title {
+      font-weight: 800; font-size: var(--text-sm); line-height: 1.3;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .carousel-doc-meta { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: 4px; }
+    .carousel-progress { height: 3px; background: var(--color-border); border-radius: 2px; margin: var(--space-3) 0; }
+    .carousel-progress-fill { height: 100%; background: var(--color-primary); border-radius: 2px; transition: width .4s; }
+    .carousel-doc-actions { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+    .carousel-dots { display: flex; justify-content: center; gap: var(--space-2); margin-top: var(--space-3); }
+    .carousel-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-border); transition: 200ms; cursor: pointer; }
+    .carousel-dot.active { background: var(--color-primary); width: 18px; border-radius: 3px; }
+    .carousel-arrow {
+      position: absolute; top: 40%; transform: translateY(-50%);
+      width: 2rem; height: 2rem; border-radius: var(--radius-full);
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      color: var(--color-text); cursor: pointer; display: grid; place-items: center;
+      z-index: 2; transition: 180ms; box-shadow: var(--shadow-sm);
+    }
+    .carousel-arrow:hover { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+    .carousel-arrow i, .carousel-arrow svg { width: 14px; height: 14px; }
+    .carousel-arrow-left  { left: -0.75rem; }
+    .carousel-arrow-right { right: -0.75rem; }
   </style>
 </head>
 <body>
@@ -416,23 +440,37 @@
       <div class="page" data-route="home">
         <div class="page-header">
           <h1 class="page-title">Accueil</h1>
-          <p class="page-subtitle">Historique de vos documents d'origine et imports réels.</p>
+          <p class="page-subtitle" id="home-subtitle">0 document · 0 min</p>
         </div>
-        <div class="card" style="margin-bottom:var(--space-4);">
-          <div style="display:flex; align-items:center; justify-content:space-between;">
-            <div>
-              <div style="font-weight:700; font-size:var(--text-sm);" id="reader-doc-title">—</div>
+
+        <!-- CARROUSEL DOCUMENTS -->
+        <div class="home-carousel">
+          <button class="carousel-arrow carousel-arrow-left" id="carousel-prev">
+            <i data-lucide="chevron-left"></i>
+          </button>
+          <div class="carousel-track" id="carousel-track"></div>
+          <button class="carousel-arrow carousel-arrow-right" id="carousel-next">
+            <i data-lucide="chevron-right"></i>
+          </button>
+          <div class="carousel-dots" id="carousel-dots"></div>
+        </div>
+
+        <!-- LECTEUR MINI -->
+        <div class="card">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-3);">
+            <div style="min-width:0;">
+              <div style="font-weight:700; font-size:var(--text-sm); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="reader-doc-title">—</div>
               <div style="font-size:var(--text-xs); color:var(--color-text-muted); margin-top:2px;" id="reader-doc-desc">—</div>
             </div>
             <span class="badge" id="current-doc-badge">PDF</span>
           </div>
-          <div class="waveform" id="waveform" style="margin-top:var(--space-3);"></div>
+          <div class="waveform" id="waveform"></div>
           <div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>
           <div style="display:flex; align-items:center; justify-content:space-between; margin-top:var(--space-3);">
             <div class="controls-row">
-              <button class="icon-btn" id="rewind-btn" title="Reculer"><i data-lucide="skip-back"></i></button>
+              <button class="icon-btn" id="rewind-btn"><i data-lucide="skip-back"></i></button>
               <button class="btn btn-primary" id="play-toggle"><i data-lucide="play"></i> Lecture</button>
-              <button class="icon-btn" id="forward-btn" title="Avancer"><i data-lucide="skip-forward"></i></button>
+              <button class="icon-btn" id="forward-btn"><i data-lucide="skip-forward"></i></button>
             </div>
             <span style="font-size:var(--text-xs); color:var(--color-text-muted);" id="reader-status">Prêt</span>
           </div>
@@ -1328,6 +1366,148 @@
         if (window.lucide) lucide.createIcons();
       }
 
+      // ─── CARROUSEL HOME ──────────────────────────────────────────────────────
+      let _carouselIndex = 0;
+
+      function renderCarousel() {
+        const track = $('#carousel-track');
+        const dots  = $('#carousel-dots');
+        if (!track || !dots) return;
+
+        const docs = appState.docs;
+        if (!docs.length) {
+          track.innerHTML = `<div class="carousel-doc-card" style="text-align:center; color:var(--color-text-faint); padding:var(--space-8);">
+            <i data-lucide="inbox" style="width:32px;height:32px;margin:auto;display:block;margin-bottom:var(--space-3);"></i>
+            Aucun document — importez un fichier
+          </div>`;
+          dots.innerHTML = '';
+          return;
+        }
+
+        // Trouver l'index du doc courant dans la liste
+        const curIdx = docs.findIndex(d => d.id === appState.currentDocId);
+        if (curIdx !== -1) _carouselIndex = curIdx;
+
+        // Icône selon type
+        const typeIcon = { pdf: 'file-text', txt: 'file', web: 'globe', ocr: 'scan-text', manuel: 'pencil' };
+
+        track.innerHTML = docs.map((d, i) => {
+          const pct  = d.wordIndex && d.content
+            ? Math.round((d.wordIndex / d.content.split(/(\s+)/).length) * 100) : (d.progress || 0);
+          const icon = typeIcon[d.type] || 'file';
+          const isActive = d.id === appState.currentDocId;
+          return `
+            <div class="carousel-doc-card ${isActive ? 'active-doc' : ''}" id="ccard-${d.id}">
+              <div style="display:flex; align-items:flex-start; gap:var(--space-3);">
+                <div style="width:40px;height:40px;border-radius:var(--radius-md);background:var(--color-primary-soft);
+                  display:grid;place-items:center;flex-shrink:0;color:var(--color-primary);">
+                  <i data-lucide="${icon}" style="width:18px;height:18px;"></i>
+                </div>
+                <div style="flex:1;min-width:0;">
+                  <div class="carousel-doc-title">${d.title}</div>
+                  <div class="carousel-doc-meta">${d.type.toUpperCase()} · ${d.minutes} min · ${pct}% lu</div>
+                </div>
+              </div>
+              <div class="carousel-progress">
+                <div class="carousel-progress-fill" style="width:${pct}%"></div>
+              </div>
+              <div class="carousel-doc-actions">
+                <button class="btn btn-primary" style="flex:1;padding:.55rem;" id="cplay-${d.id}">
+                  <i data-lucide="play" style="width:14px;"></i> ${isActive && appState.playing ? 'En cours…' : 'Écouter'}
+                </button>
+                <button class="btn btn-outline" style="padding:.55rem var(--space-3);" id="cread-${d.id}">
+                  <i data-lucide="book-open" style="width:14px;"></i>
+                </button>
+              </div>
+            </div>`;
+        }).join('');
+
+        // Dots
+        dots.innerHTML = docs.map((_, i) =>
+          `<div class="carousel-dot ${i === _carouselIndex ? 'active' : ''}" id="cdot-${i}"></div>`
+        ).join('');
+
+        // Scroll au doc courant
+        const activeCard = track.children[_carouselIndex];
+        if (activeCard) {
+          setTimeout(() => activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }), 50);
+        }
+
+        // Events cartes
+        docs.forEach((d, i) => {
+          // Clic sur la carte → sélectionner le doc
+          $(`#ccard-${d.id}`)?.addEventListener('click', (e) => {
+            if (e.target.closest('button')) return; // laisser les boutons gérer
+            _selectCarouselDoc(d, i);
+          });
+          // Bouton Écouter
+          $(`#cplay-${d.id}`)?.addEventListener('click', () => {
+            _selectCarouselDoc(d, i);
+            setTimeout(() => {
+              if (!appState.playing) {
+                $('#play-toggle').disabled = true;
+                startSpeechEngine();
+              } else {
+                stopSpeechEngine();
+              }
+            }, 80);
+          });
+          // Bouton Lire (aller page Reader)
+          $(`#cread-${d.id}`)?.addEventListener('click', () => {
+            _selectCarouselDoc(d, i);
+            navigate('reader');
+          });
+          // Dot
+          $(`#cdot-${i}`)?.addEventListener('click', () => {
+            _carouselIndex = i;
+            track.children[i]?.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+            renderCarousel();
+          });
+        });
+
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function _selectCarouselDoc(d, i) {
+        if (appState.currentDocId !== d.id) {
+          stopSpeechEngine();
+          appState.currentDocId     = d.id;
+          appState.currentWordIndex = d.wordIndex || 0;
+          appState.wordsArray       = d.content.split(/(\s+)/);
+          savePrefs();
+        }
+        _carouselIndex = i;
+        renderAll();
+      }
+
+      // Flèches carrousel
+      $('#carousel-prev')?.addEventListener('click', () => {
+        const track = $('#carousel-track');
+        _carouselIndex = Math.max(0, _carouselIndex - 1);
+        track.children[_carouselIndex]?.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+        $$('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === _carouselIndex));
+      });
+      $('#carousel-next')?.addEventListener('click', () => {
+        const track = $('#carousel-track');
+        _carouselIndex = Math.min(appState.docs.length - 1, _carouselIndex + 1);
+        track.children[_carouselIndex]?.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+        $$('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === _carouselIndex));
+      });
+
+      // Sync index carrousel au scroll (swipe)
+      $('#carousel-track')?.addEventListener('scrollend', () => {
+        const track  = $('#carousel-track');
+        const cards  = [...track.children];
+        const center = track.scrollLeft + track.clientWidth / 2;
+        let closest  = 0, minDist = Infinity;
+        cards.forEach((c, i) => {
+          const dist = Math.abs(c.offsetLeft + c.clientWidth / 2 - center);
+          if (dist < minDist) { minDist = dist; closest = i; }
+        });
+        _carouselIndex = closest;
+        $$('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === closest));
+      });
+
       function renderAll() {
         const doc = appState.docs.find(d => d.id === appState.currentDocId);
         if (doc) {
@@ -1366,6 +1546,14 @@
 
         $('#stat-docs').textContent = appState.docs.length;
         $('#stat-minutes').textContent = `${appState.docs.reduce((acc, d) => acc + (d.minutes || 5), 0)} m`;
+
+        // Subtitle Home
+        const totalMin = appState.docs.reduce((acc, d) => acc + (d.minutes || 0), 0);
+        const sub = $('#home-subtitle');
+        if (sub) sub.textContent = `${appState.docs.length} document${appState.docs.length > 1 ? 's' : ''} · ${totalMin} min`;
+
+        // Carrousel Home
+        renderCarousel();
 
         // Barre de progression de lecture
         const curDoc = appState.docs.find(d => d.id === appState.currentDocId);
@@ -1875,41 +2063,6 @@
         navigate('home');
       });
     });
-  </script>
-  <!-- ─── ENREGISTREMENT SERVICE WORKER PWA ─────────────────────────── -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then(reg => {
-            console.log('[PWA] Service Worker enregistré :', reg.scope);
-            // Détecter une mise à jour disponible
-            reg.addEventListener('updatefound', () => {
-              const newWorker = reg.installing;
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // Nouvelle version disponible — notifier l'utilisateur
-                  const banner = document.createElement('div');
-                  banner.style.cssText = `
-                    position:fixed; bottom:5rem; left:50%; transform:translateX(-50%);
-                    background:#6d6cff; color:#fff; padding:.6rem 1.2rem;
-                    border-radius:999px; font-size:.875rem; font-weight:700;
-                    z-index:999; cursor:pointer; box-shadow:0 4px 20px rgba(109,108,255,.4);
-                  `;
-                  banner.textContent = '🔄 Mise à jour disponible — Toucher pour actualiser';
-                  banner.onclick = () => {
-                    newWorker.postMessage('SKIP_WAITING');
-                    window.location.reload();
-                  };
-                  document.body.appendChild(banner);
-                  setTimeout(() => banner.remove(), 8000);
-                }
-              });
-            });
-          })
-          .catch(err => console.warn('[PWA] SW non enregistré :', err));
-      });
-    }
   </script>
 </body>
 </html>
