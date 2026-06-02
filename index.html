@@ -2198,6 +2198,15 @@
       // Chaque proxy a sa propre stratégie de parsing
       const CORS_PROXIES = [
         {
+          name: 'lhusser.fr (proxy perso)',
+          url:  (u) => `https://www.lhusser.fr/proxy.php?url=${encodeURIComponent(u)}`,
+          extract: async (resp) => {
+            const data = await resp.json();
+            if (data.error) throw new Error(data.error);
+            return data.contents || null;
+          }
+        },
+        {
           name: 'allorigins',
           url:  (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
           extract: async (resp) => {
@@ -2213,11 +2222,6 @@
         {
           name: 'codetabs',
           url:  (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-          extract: async (resp) => resp.text()
-        },
-        {
-          name: 'htmldriven',
-          url:  (u) => `https://jsonp.afeld.me/?url=${encodeURIComponent(u)}`,
           extract: async (resp) => resp.text()
         },
       ];
