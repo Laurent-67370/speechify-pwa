@@ -507,6 +507,43 @@
     .stat-doc-pct { font-size: 11px; font-weight: 800; color: var(--color-primary); flex-shrink: 0; }
     .stat-goal-btn { font-size: 11px; color: var(--color-primary); font-weight: 700; padding: 4px 10px; border-radius: var(--radius-full); border: 1px solid var(--color-primary); background: var(--color-primary-soft); cursor: pointer; }
 
+    /* --- PAGE AIDE --- */
+    .help-section { margin-bottom: var(--space-5); }
+    .help-section-title {
+      font-size: var(--text-sm); font-weight: 800; margin-bottom: var(--space-3);
+      display: flex; align-items: center; gap: var(--space-2);
+      padding-bottom: var(--space-2); border-bottom: 1px solid var(--color-divider);
+    }
+    .help-item {
+      display: flex; gap: var(--space-3); padding: var(--space-3) 0;
+      border-bottom: 1px solid var(--color-divider);
+    }
+    .help-item:last-child { border-bottom: none; }
+    .help-item-icon {
+      width: 36px; height: 36px; border-radius: var(--radius-md); flex-shrink: 0;
+      background: var(--color-primary-soft); color: var(--color-primary);
+      display: grid; place-items: center; font-size: 18px;
+    }
+    .help-item-body { flex: 1; min-width: 0; }
+    .help-item-title { font-size: var(--text-sm); font-weight: 700; margin-bottom: 3px; }
+    .help-item-desc { font-size: var(--text-xs); color: var(--color-text-muted); line-height: 1.5; }
+    .help-badge {
+      display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px;
+      border-radius: var(--radius-full); background: var(--color-primary-soft);
+      color: var(--color-primary); margin-top: 5px;
+    }
+    .help-tip {
+      background: var(--color-surface-2); border-left: 3px solid var(--color-primary);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      padding: var(--space-3) var(--space-4); margin: var(--space-2) 0;
+      font-size: var(--text-xs); color: var(--color-text-muted); line-height: 1.6;
+    }
+    .help-version {
+      text-align: center; font-size: 10px; color: var(--color-text-faint);
+      margin-top: var(--space-6); padding-top: var(--space-4);
+      border-top: 1px solid var(--color-divider);
+    }
+
     /* --- COMPTEUR QUOTIDIEN --- */
     .daily-goal {
       background: var(--color-surface); border: 1px solid var(--color-border);
@@ -560,6 +597,9 @@
     <div class="top-bar">
       <div class="logo">Speechify<span>Pro</span></div>
       <div class="top-actions">
+        <button class="icon-btn" id="help-btn" title="Aide">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </button>
         <button class="icon-btn" id="share-btn" title="Partager l'app">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
         </button>
@@ -808,6 +848,183 @@
           <button class="tab-btn" data-filter="ocr">OCR</button>
         </div>
         <div id="library-list"></div>
+      </div>
+
+      <!-- PAGE AIDE -->
+      <div class="page" data-route="help">
+        <div class="page-header">
+          <h1 class="page-title">Aide</h1>
+          <p class="page-subtitle">Guide d'utilisation de SpeechifyPro.</p>
+        </div>
+
+        <!-- DÉMARRAGE RAPIDE -->
+        <div class="card">
+          <div class="help-section">
+            <div class="help-section-title">🚀 Démarrage rapide</div>
+            <div class="help-item">
+              <div class="help-item-icon">1</div>
+              <div class="help-item-body">
+                <div class="help-item-title">Importer un document</div>
+                <div class="help-item-desc">Tap sur <strong>Importer</strong> dans la nav → choisissez PDF, TXT, image ou collez une URL d'article web.</div>
+              </div>
+            </div>
+            <div class="help-item">
+              <div class="help-item-icon">2</div>
+              <div class="help-item-body">
+                <div class="help-item-title">Lancer la lecture</div>
+                <div class="help-item-desc">Tap sur <strong>Lire</strong> dans la nav → bouton <strong>Lecture</strong>. L'audio démarre et le texte défile avec surlignage.</div>
+              </div>
+            </div>
+            <div class="help-item">
+              <div class="help-item-icon">3</div>
+              <div class="help-item-body">
+                <div class="help-item-title">Reprendre où vous étiez</div>
+                <div class="help-item-desc">Votre position est sauvegardée automatiquement. Rouvrez l'app et tap <strong>Reprendre</strong> sur l'Accueil.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- IMPORT -->
+        <div class="card">
+          <div class="help-section">
+            <div class="help-section-title">📥 Importer des documents</div>
+            <div class="help-item">
+              <div class="help-item-icon">📄</div>
+              <div class="help-item-body">
+                <div class="help-item-title">PDF</div>
+                <div class="help-item-desc">Tap "PDF" → sélectionnez votre fichier. Le texte est extrait automatiquement, même sur les PDFs multi-pages.</div>
+              </div>
+            </div>
+            <div class="help-item">
+              <div class="help-item-icon">🌐</div>
+              <div class="help-item-body">
+                <div class="help-item-title">URL d'article web</div>
+                <div class="help-item-desc">Collez n'importe quelle URL d'article ou blog → tap ⬇️. Le texte principal est extrait et ajouté à la bibliothèque.</div>
+                <div class="help-tip">💡 Si l'import échoue, le site est probablement protégé par JavaScript. Copiez-collez le texte manuellement.</div>
+              </div>
+            </div>
+            <div class="help-item">
+              <div class="help-item-icon">📷</div>
+              <div class="help-item-body">
+                <div class="help-item-title">Image OCR</div>
+                <div class="help-item-desc">Photographiez un document papier ou chargez une image. L'OCR extrait le texte automatiquement (connexion requise au premier usage).</div>
+                <span class="help-badge">Français + Anglais</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LECTURE -->
+        <div class="card">
+          <div class="help-section">
+            <div class="help-section-title">🔊 Lecture audio</div>
+            <div class="help-item">
+              <div class="help-item-icon">🖊️</div>
+              <div class="help-item-body">
+                <div class="help-item-title">Surlignage synchronisé</div>
+                <div class="help-item-desc">Activez <strong>Surlignage ON</strong> pour suivre mot par mot. Ajustez le curseur <strong>Sync</strong> si le surlignage est en avance ou en retard.</div>
+              </div>
+            </div>
+            <div class="help-item">
+              <div class="help-item-icon">⚡</div>
+              <div class="help-item-body">
+                <div class="help-item-title">Vitesse & Tonalité</div>
+                <div class="help-item-desc">Vitesse de 0.5x à 3x. Tonalité de 0.5 (grave) à 2.0 (aigu). La vitesse est mémorisée par document.</div>
+              </div>
+            </div>
+            <div class="help-item">
+              <div class="help-item-icon">🎙️</div>
+              <div class="help-item-body">
+                <div class="help-item-title">Choisir une voix</div>
+                <div class="help-item-desc">Les voix <strong>⭐ Google</strong> sont les meilleures. Si vous n'en voyez pas, installez-les via Paramètres → Accessibilité → Synthèse vocale → Google TTS → Installer données vocales.</div>
+                <div class="help-tip">💡 Sur Microsoft Edge, des voix neurales HD sont disponibles sans installation.</div>
+              </div>
+            </div>
+            <div class="help-item">
+              <div class="help-item-icon">📖</div>
+              <div class="help-item-body">
+                <div class="help-item-title">Mode de lecture</div>
+                <div class="help-item-desc"><strong>Par phrase</strong> : découpe le texte en phrases courtes — plus fluide sur Android. <strong>Par §</strong> : paragraphes entiers — meilleure fluidité sur desktop.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FONCTIONNALITÉS -->
+        <div class="card">
+          <div class="help-section">
+            <div class="help-section-title">✨ Fonctionnalités avancées</div>
+            <div class="help-item">
+              <div class="help-item-icon">🌑</div>
+              <div class="help-item-body">
+                <div class="help-item-title">Mode Zen</div>
+                <div class="help-item-desc">Fond noir total, texte centré style téléprompter. Tap <strong>Mode Zen</strong> → lecture immersive. Quittez avec ✕ ou la touche Échap.</div>
+              </div>
+            </div>
+            <div class="help-item">
+              <div class="help-item-icon">🔖</div>
+              <div class="help-item-body">
+                <div class="help-item-title">Marque-pages</div>
+                <div class="help-item-desc">Tap <strong>Marquer</strong> pendant la lecture pour sauvegarder votre position. Retrouvez vos marques dans le panneau qui s'ouvre.</div>
+              </div>
+            </div>
+            <div class="help-item">
+              <div class="help-item-icon">🎯</div>
+              <div class="help-item-body">
+                <div class="help-item-title">Objectif quotidien</div>
+                <div class="help-item-desc">Sur l'Accueil, tap sur <strong>objectif : X min ✏️</strong> pour personnaliser votre cible. La progression est sauvegardée chaque jour.</div>
+              </div>
+            </div>
+            <div class="help-item">
+              <div class="help-item-icon">🔔</div>
+              <div class="help-item-body">
+                <div class="help-item-title">Notifications</div>
+                <div class="help-item-desc">Une notification s'affiche à la fin de chaque lecture. Autorisez les notifications quand l'app vous le demande.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DÉPANNAGE -->
+        <div class="card">
+          <div class="help-section">
+            <div class="help-section-title">🔧 Dépannage</div>
+            <div class="help-item">
+              <div class="help-item-icon">❓</div>
+              <div class="help-item-body">
+                <div class="help-item-title">L'audio ne démarre pas</div>
+                <div class="help-item-desc">Sur Android, l'audio nécessite une interaction préalable. Tap d'abord sur la page, puis sur Lecture. Vérifiez que le volume n'est pas coupé.</div>
+              </div>
+            </div>
+            <div class="help-item">
+              <div class="help-item-icon">❓</div>
+              <div class="help-item-body">
+                <div class="help-item-title">Le surlignage est désynchronisé</div>
+                <div class="help-item-desc">Ajustez le curseur <strong>Sync surlignage</strong> dans Réglages. Vers "Lent" si le texte avance trop vite, vers "Rapide" si il est en retard.</div>
+              </div>
+            </div>
+            <div class="help-item">
+              <div class="help-item-icon">❓</div>
+              <div class="help-item-body">
+                <div class="help-item-title">Je ne vois que des voix locales</div>
+                <div class="help-item-desc">Sur Xiaomi HyperOS, les voix Google HD ne sont pas exposées à Chrome. Essayez <strong>Microsoft Edge</strong> pour accéder aux voix neurales HD.</div>
+              </div>
+            </div>
+            <div class="help-item">
+              <div class="help-item-icon">❓</div>
+              <div class="help-item-body">
+                <div class="help-item-title">L'import URL échoue</div>
+                <div class="help-item-desc">Certains sites bloquent les proxies CORS. Solution : ouvrez la page dans Chrome, sélectionnez tout le texte, copiez et collez dans <strong>Saisie manuelle</strong>.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="help-version">
+          SpeechifyPro v28 · Développé par Laurent Husser<br>
+          <a href="https://lhusser.fr" style="color:var(--color-primary);">lhusser.fr</a>
+        </div>
       </div>
 
       <!-- PAGE STATS -->
@@ -2234,6 +2451,9 @@
       });
 
       // ─── #7 PARTAGE ──────────────────────────────────────────────────────────
+      // Bouton aide (top-bar)
+      $('#help-btn')?.addEventListener('click', () => navigate('help'));
+
       $('#share-btn')?.addEventListener('click', async () => {
         const doc  = appState.docs.find(d => d.id === appState.currentDocId);
         const url  = 'https://laurent-67370.github.io/speechify-pwa/';
