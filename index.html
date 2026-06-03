@@ -405,6 +405,20 @@
     .carousel-arrow-left  { left: -0.75rem; }
     .carousel-arrow-right { right: -0.75rem; }
 
+    /* --- BOUTONS MODE LECTURE --- */
+    .read-mode-btn {
+      display: flex; align-items: center; justify-content: center; gap: .4rem;
+      padding: .5rem; border-radius: var(--radius-md);
+      background: var(--color-surface-2); border: 1.5px solid var(--color-border);
+      color: var(--color-text-muted); font-size: var(--text-xs); font-weight: 700;
+      cursor: pointer; transition: 180ms;
+    }
+    .read-mode-btn.active {
+      background: var(--color-primary-soft); color: var(--color-primary);
+      border-color: var(--color-primary);
+    }
+    .read-mode-btn i, .read-mode-btn svg { flex-shrink: 0; }
+
     /* --- COMPTEUR QUOTIDIEN --- */
     .daily-goal {
       background: var(--color-surface); border: 1px solid var(--color-border);
@@ -575,6 +589,16 @@
 
           <!-- PARAMÈTRES (dépliables) -->
           <div class="reader-settings" id="reader-settings-panel">
+
+            <!-- Voix avec badge qualité -->
+            <div class="settings-row" style="align-items:flex-start; flex-direction:column; gap:var(--space-1);">
+              <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+                <span class="settings-label">🎙 Voix</span>
+                <span id="voice-quality-badge" style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:99px; background:var(--color-primary-soft); color:var(--color-primary);">—</span>
+              </div>
+              <select id="voice-select" style="width:100%; background:var(--color-surface-2); border:1.5px solid var(--color-border); border-radius:var(--radius-md); padding:var(--space-2) var(--space-3); color:var(--color-text); font-family:var(--font-body); font-size:var(--text-xs);"></select>
+            </div>
+
             <!-- Vitesse -->
             <div class="settings-row">
               <span class="settings-label">⚡ Vitesse</span>
@@ -582,11 +606,39 @@
                 style="flex:1; accent-color:var(--color-primary);">
               <span class="settings-val" id="speed-value">1.4x</span>
             </div>
-            <!-- Voix -->
-            <div class="settings-row" style="align-items:flex-start; flex-direction:column; gap:var(--space-1);">
-              <span class="settings-label">🎙 Voix</span>
-              <select id="voice-select" style="width:100%; background:var(--color-surface-2); border:1.5px solid var(--color-border); border-radius:var(--radius-md); padding:var(--space-2) var(--space-3); color:var(--color-text); font-family:var(--font-body); font-size:var(--text-xs);"></select>
+
+            <!-- Tonalité (pitch) -->
+            <div class="settings-row">
+              <span class="settings-label">🎵 Tonalité</span>
+              <input type="range" id="pitch-range" min="0.5" max="2" step="0.1" value="1"
+                style="flex:1; accent-color:var(--color-primary);">
+              <span class="settings-val" id="pitch-value">1.0</span>
             </div>
+
+            <!-- Pause entre paragraphes -->
+            <div class="settings-row">
+              <span class="settings-label">⏸ Pause §</span>
+              <input type="range" id="pause-range" min="0" max="2000" step="100" value="400"
+                style="flex:1; accent-color:var(--color-primary);">
+              <span class="settings-val" id="pause-value">0.4s</span>
+            </div>
+
+            <!-- Mode lecture -->
+            <div style="background:var(--color-surface-offset); border-radius:var(--radius-md); padding:var(--space-3);">
+              <div style="font-size:var(--text-xs); font-weight:700; color:var(--color-text-muted); margin-bottom:var(--space-2);">📖 Mode de lecture</div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-2);">
+                <button class="read-mode-btn active" id="mode-sentence" data-mode="sentence">
+                  <i data-lucide="align-left" style="width:14px;"></i> Par phrase
+                </button>
+                <button class="read-mode-btn" id="mode-paragraph" data-mode="paragraph">
+                  <i data-lucide="align-justify" style="width:14px;"></i> Par §
+                </button>
+              </div>
+              <p style="font-size:10px; color:var(--color-text-faint); margin-top:var(--space-2); text-align:center;">
+                "Par phrase" = plus fluide sur Android
+              </p>
+            </div>
+
             <!-- Sync surlignage -->
             <div style="background:var(--color-surface-offset); border-radius:var(--radius-md); padding:var(--space-3);">
               <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--space-2);">
@@ -599,10 +651,8 @@
                   style="flex:1; accent-color:var(--color-primary);">
                 <span style="font-size:10px; color:var(--color-text-faint);">Rapide</span>
               </div>
-              <p style="font-size:10px; color:var(--color-text-faint); margin-top:var(--space-1); text-align:center;">
-                Ajuste si le surlignage est en avance ou en retard
-              </p>
             </div>
+
           </div>
 
           <!-- SKELETON + PDF PROGRESS -->
@@ -839,9 +889,12 @@
         highlight: true, speed: 1.4, selectedVoiceName: '', currentDocId: null,
         isFocusMode: false, theme: 'dark', docs: [], wordsArray: [], currentWordIndex: 0,
         syncSpeed: 9,
-        dailyGoalMin: 30,   // objectif quotidien en minutes
-        dailyDoneMin: 0,    // minutes écoutées aujourd'hui
-        dailyDate: '',      // date du jour pour reset automatique
+        pitch: 1.0,
+        pauseMs: 400,
+        readMode: 'sentence',
+        dailyGoalMin: 30,
+        dailyDoneMin: 0,
+        dailyDate: '',
       };
 
       const $ = (sel) => document.querySelector(sel);
@@ -864,6 +917,9 @@
           dailyGoalMin:      appState.dailyGoalMin,
           dailyDoneMin:      appState.dailyDoneMin,
           dailyDate:         appState.dailyDate,
+          pitch:             appState.pitch,
+          pauseMs:           appState.pauseMs,
+          readMode:          appState.readMode,
         };
         localStorage.setItem('speechify_prefs', JSON.stringify(prefs));
       }
@@ -885,6 +941,9 @@
           if (p.dailyGoalMin)      appState.dailyGoalMin      = p.dailyGoalMin;
           if (p.dailyDoneMin !== undefined) appState.dailyDoneMin = p.dailyDoneMin;
           if (p.dailyDate)         appState.dailyDate         = p.dailyDate;
+          if (p.pitch)             appState.pitch             = p.pitch;
+          if (p.pauseMs !== undefined) appState.pauseMs       = p.pauseMs;
+          if (p.readMode)          appState.readMode          = p.readMode;
         } catch(e) {}
       }
 
@@ -993,24 +1052,66 @@
 
       // --- SYNTHÈSE VOCALE ---
       let synthVoices = [];
+      function _voiceQuality(v) {
+        const n = v.name.toLowerCase();
+        if (n.includes('google') || n.includes('neural') || n.includes('enhanced') || n.includes('premium')) return 3;
+        if (v.localService) return 2;
+        return 1;
+      }
+      function _voiceQualityLabel(v) {
+        const n = v.name.toLowerCase();
+        if (n.includes('google'))   return '⭐ Google';
+        if (n.includes('neural') || n.includes('enhanced') || n.includes('premium')) return '⭐ HD';
+        if (v.localService)         return '✓ Locale';
+        return '— Réseau';
+      }
+
       function loadSystemVoices() {
         if (!('speechSynthesis' in window)) return;
         synthVoices = window.speechSynthesis.getVoices();
         if (appState.playing) return;
         const select = $('#voice-select');
+        if (!select) return;
         select.innerHTML = '';
-        const list = synthVoices.filter(v => v.lang.startsWith('fr') || v.lang.startsWith('en'));
-        const finalList = list.length ? list : synthVoices;
-        finalList.forEach(v => {
+
+        // Filtrer FR + EN, trier : Google > Neural > locale > réseau, puis FR avant EN
+        let list = synthVoices.filter(v => v.lang.startsWith('fr') || v.lang.startsWith('en'));
+        if (!list.length) list = synthVoices;
+        list.sort((a, b) => {
+          // FR en premier
+          const aFr = a.lang.startsWith('fr') ? 0 : 1;
+          const bFr = b.lang.startsWith('fr') ? 0 : 1;
+          if (aFr !== bFr) return aFr - bFr;
+          // Puis qualité décroissante
+          return _voiceQuality(b) - _voiceQuality(a);
+        });
+
+        // Grouper FR / EN
+        let lastLangGroup = '';
+        list.forEach(v => {
+          const group = v.lang.startsWith('fr') ? 'Français' : 'English';
+          if (group !== lastLangGroup) {
+            const sep = document.createElement('optgroup');
+            sep.label = group;
+            select.appendChild(sep);
+            lastLangGroup = group;
+          }
           const opt = document.createElement('option');
-          opt.value = v.name; opt.textContent = `${v.name} (${v.lang})`;
+          opt.value = v.name;
+          opt.textContent = `${_voiceQualityLabel(v)} · ${v.name}`;
           if (v.name === appState.selectedVoiceName) opt.selected = true;
           else if (v.lang.startsWith('fr') && !appState.selectedVoiceName) {
-            appState.selectedVoiceName = v.name; opt.selected = true;
+            appState.selectedVoiceName = v.name;
+            opt.selected = true;
           }
           select.appendChild(opt);
         });
-        if (!appState.selectedVoiceName && finalList.length) appState.selectedVoiceName = finalList[0].name;
+        if (!appState.selectedVoiceName && list.length) appState.selectedVoiceName = list[0].name;
+
+        // Badge qualité de la voix sélectionnée
+        const cur = list.find(v => v.name === appState.selectedVoiceName);
+        const badge = $('#voice-quality-badge');
+        if (badge && cur) badge.textContent = _voiceQualityLabel(cur);
       }
       if ('speechSynthesis' in window) {
         window.speechSynthesis.onvoiceschanged = loadSystemVoices;
@@ -1048,35 +1149,60 @@
       }
 
       /**
-       * Construit _chunks[] à partir de currentWordIndex.
-       * Chaque chunk contient :
-       *   text      : string à envoyer à SpeechSynthesis
-       *   words     : [{wordIdx, charLen, charStart}] — un entry par MOT réel
+       * Construit _chunks[] selon readMode :
+       *  'sentence'  → découpe aux fins de phrase (. ! ? \n) — plus fluide sur Android
+       *  'paragraph' → découpe aux sauts de ligne doubles — chunks plus longs
+       * Chaque chunk : { text, words: [{wordIdx, charLen, charStart}], endsWithParagraph }
        */
       function _buildChunks() {
         _chunks = [];
-        const wa = appState.wordsArray;
+        const wa    = appState.wordsArray;
         const start = appState.currentWordIndex;
+        const mode  = appState.readMode || 'sentence';
+
+        // Regex de coupure selon le mode
+        const isCutPoint = (tok) => {
+          if (mode === 'sentence') {
+            return /[.!?]\s*$/.test(tok) || tok.includes('\n');
+          } else {
+            return tok.includes('\n\n') || (tok.includes('\n') && tok.trim() === '');
+          }
+        };
 
         let chunkText  = '';
         let chunkWords = [];
+        let endsWithParagraph = false;
+
+        const pushChunk = () => {
+          if (chunkText.trim()) {
+            _chunks.push({ text: chunkText.trim(), words: chunkWords, endsWithParagraph });
+          }
+          chunkText  = '';
+          chunkWords = [];
+          endsWithParagraph = false;
+        };
 
         for (let i = start; i < wa.length; i++) {
-          const tok   = wa[i];
+          const tok    = wa[i];
           const isWord = tok.trim() !== '';
 
+          // Forcer la coupure si chunk trop long
           if (isWord && chunkText.length + tok.length > CHUNK_MAX && chunkText.trim()) {
-            _chunks.push({ text: chunkText, words: chunkWords });
-            chunkText  = '';
-            chunkWords = [];
+            pushChunk();
           }
 
           if (isWord) {
             chunkWords.push({ wordIdx: i, charLen: tok.length, charStart: chunkText.length });
           }
           chunkText += tok;
+
+          // Coupure naturelle selon le mode
+          if (isWord && isCutPoint(tok) && chunkText.trim().length > 30) {
+            endsWithParagraph = tok.includes('\n');
+            pushChunk();
+          }
         }
-        if (chunkText.trim()) _chunks.push({ text: chunkText, words: chunkWords });
+        pushChunk(); // dernier chunk restant
       }
 
       /**
@@ -1149,8 +1275,9 @@
         if (!synthVoices.length) synthVoices = window.speechSynthesis.getVoices();
         const voice = synthVoices.find(v => v.name === appState.selectedVoiceName);
         if (voice) utt.voice = voice;
-        utt.rate = appState.speed;
-        utt.lang = voice ? voice.lang : 'fr-FR';
+        utt.rate  = appState.speed;
+        utt.pitch = appState.pitch || 1.0;
+        utt.lang  = voice ? voice.lang : 'fr-FR';
 
         // Programmer les highlights avant de parler
         _scheduleHighlights(chunk);
@@ -1158,7 +1285,11 @@
         utt.onend = () => {
           if (!appState.playing) return;
           _clearWordTimers();
-          setTimeout(() => _speakChunk(chunkIdx + 1), 50);
+          // Pause entre paragraphes si le chunk se termine par un saut de ligne
+          const pauseDelay = (chunk.text.trimEnd().endsWith('\n') || chunk.endsWithParagraph)
+            ? (appState.pauseMs || 0) + 50
+            : 50;
+          setTimeout(() => _speakChunk(chunkIdx + 1), pauseDelay);
         };
 
         utt.onerror = (e) => {
@@ -1803,8 +1934,39 @@
 
       $('#voice-select').addEventListener('change', (e) => {
         appState.selectedVoiceName = e.target.value;
+        // Mettre à jour le badge qualité
+        const cur = synthVoices.find(v => v.name === appState.selectedVoiceName);
+        const badge = $('#voice-quality-badge');
+        if (badge && cur) badge.textContent = _voiceQualityLabel(cur);
         savePrefs();
         if (appState.playing) startSpeechEngine();
+      });
+
+      // Tonalité (pitch)
+      $('#pitch-range')?.addEventListener('input', (e) => {
+        appState.pitch = parseFloat(e.target.value);
+        $('#pitch-value').textContent = appState.pitch.toFixed(1);
+        savePrefs();
+        if (appState.playing) startSpeechEngine();
+      });
+
+      // Pause entre paragraphes
+      $('#pause-range')?.addEventListener('input', (e) => {
+        appState.pauseMs = parseInt(e.target.value);
+        $('#pause-value').textContent = (appState.pauseMs / 1000).toFixed(1) + 's';
+        savePrefs();
+      });
+
+      // Mode de lecture
+      $$('.read-mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          $$('.read-mode-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          appState.readMode = btn.dataset.mode;
+          savePrefs();
+          if (appState.playing) startSpeechEngine();
+          toast(`Mode : ${appState.readMode === 'sentence' ? 'Par phrase' : 'Par paragraphe'}`);
+        });
       });
 
       // Curseur de synchronisation highlight ↔ audio
@@ -2413,6 +2575,23 @@
         // Restaurer vitesse
         $('#speed-range').value = appState.speed;
         $('#speed-value').textContent = `${appState.speed.toFixed(1)}x`;
+
+        // Restaurer pitch
+        if ($('#pitch-range')) {
+          $('#pitch-range').value = appState.pitch || 1.0;
+          $('#pitch-value').textContent = (appState.pitch || 1.0).toFixed(1);
+        }
+
+        // Restaurer pause
+        if ($('#pause-range')) {
+          $('#pause-range').value = appState.pauseMs ?? 400;
+          $('#pause-value').textContent = ((appState.pauseMs ?? 400) / 1000).toFixed(1) + 's';
+        }
+
+        // Restaurer mode lecture
+        $$('.read-mode-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.mode === (appState.readMode || 'sentence'));
+        });
 
         // Restaurer sync
         CHARS_PER_SEC = appState.syncSpeed || 9;
