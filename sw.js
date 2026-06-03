@@ -80,3 +80,22 @@ self.addEventListener('fetch', (e) => {
 self.addEventListener('message', (e) => {
   if (e.data === 'SKIP_WAITING') self.skipWaiting();
 });
+
+// ─── NOTIFICATIONS PUSH ──────────────────────────────────────────────────────
+self.addEventListener('message', (e) => {
+  if (e.data === 'SKIP_WAITING') { self.skipWaiting(); return; }
+  if (e.data?.type === 'NOTIFY') {
+    self.registration.showNotification(e.data.title, {
+      body:  e.data.body,
+      icon:  e.data.icon  || './icons/icon-192.png',
+      badge: e.data.badge || './icons/icon-192.png',
+      vibrate: [200, 100, 200],
+      data: { url: self.location.origin }
+    });
+  }
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(clients.openWindow(e.notification.data?.url || '/'));
+});
