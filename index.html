@@ -7,9 +7,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
+  <script>
+    // Garantir que lucide.createIcons() est appelé dès que le DOM est prêt
+    function _initIcons() { if (window.lucide) lucide.createIcons(); }
+    document.addEventListener('DOMContentLoaded', _initIcons);
+  </script>
   <style>
     :root {
       --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
@@ -530,8 +535,12 @@
     <div class="top-bar">
       <div class="logo">Speechify<span>Pro</span></div>
       <div class="top-actions">
-        <button class="icon-btn" id="share-btn" title="Partager l'app"><i data-lucide="share-2"></i></button>
-        <button class="icon-btn" id="theme-toggle-btn" title="Basculer thème"><i data-lucide="sun-medium"></i></button>
+        <button class="icon-btn" id="share-btn" title="Partager l'app">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </button>
+        <button class="icon-btn" id="theme-toggle-btn" title="Basculer thème">
+          <svg id="theme-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        </button>
       </div>
     </div>
 
@@ -916,11 +925,28 @@
 
     <!-- BOTTOM NAV -->
     <nav class="bottom-nav">
-      <button class="nav-item active" data-route-nav="home"><i data-lucide="home"></i>Accueil</button>
-      <button class="nav-item" data-route-nav="reader"><i data-lucide="headphones"></i>Lire</button>
-      <button class="nav-item" data-route-nav="library"><i data-lucide="library"></i>Biblio</button>
-      <button class="nav-item" data-route-nav="import"><i data-lucide="upload"></i>Importer</button>
-      <button class="nav-item" data-route-nav="stats"><i data-lucide="bar-chart-2"></i>Stats</button>
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-route-nav="home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Accueil
+      </button>
+      <button class="nav-item" data-route-nav="reader">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+        Lire
+      </button>
+      <button class="nav-item" data-route-nav="library">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+        Biblio
+      </button>
+      <button class="nav-item" data-route-nav="import">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Importer
+      </button>
+      <button class="nav-item" data-route-nav="stats">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Stats
+      </button>
+    </nav>
     </nav>
   </div><!-- .app-shell -->
 
@@ -2146,9 +2172,13 @@
       $('#theme-toggle-btn').addEventListener('click', () => {
         appState.theme = appState.theme === 'dark' ? 'light' : 'dark';
         document.documentElement.setAttribute('data-theme', appState.theme);
-        $('#theme-toggle-btn').innerHTML = appState.theme === 'dark'
-          ? '<i data-lucide="sun-medium"></i>'
-          : '<i data-lucide="moon-star"></i>';
+        // SVG inline : soleil = dark mode actif, lune = light mode actif
+        const themeIcon = $('#theme-icon');
+        if (themeIcon) {
+          themeIcon.innerHTML = appState.theme === 'dark'
+            ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>'
+            : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+        }
         savePrefs();
         if (window.lucide) lucide.createIcons();
       });
