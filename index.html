@@ -435,6 +435,48 @@
     .bookmark-del { color:var(--color-text-faint); flex-shrink:0; padding:4px; border-radius:4px; }
     .bookmark-del:hover { color:var(--color-danger); background:rgba(222,99,135,.1); }
 
+    /* --- ONBOARDING --- */
+    #onboarding-overlay {
+      position: fixed; inset: 0; z-index: 500;
+      background: rgba(0,0,0,.85); backdrop-filter: blur(8px);
+      display: none; align-items: flex-end; justify-content: center;
+      padding: var(--space-4);
+    }
+    #onboarding-overlay.active { display: flex; animation: zenIn .3s ease; }
+    .onboarding-card {
+      width: 100%; max-width: 420px;
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius-xl); padding: var(--space-6);
+      text-align: center;
+    }
+    .onboarding-icon {
+      width: 64px; height: 64px; border-radius: var(--radius-xl);
+      background: var(--color-primary-soft); color: var(--color-primary);
+      display: grid; place-items: center; margin: 0 auto var(--space-4);
+    }
+    .onboarding-icon i, .onboarding-icon svg { width: 32px; height: 32px; }
+    .onboarding-title { font-size: var(--text-lg); font-weight: 900; margin-bottom: var(--space-2); }
+    .onboarding-desc { color: var(--color-text-muted); font-size: var(--text-sm); line-height: 1.6; margin-bottom: var(--space-5); }
+    .onboarding-dots { display: flex; justify-content: center; gap: var(--space-2); margin-bottom: var(--space-5); }
+    .onboarding-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-border); transition: 200ms; }
+    .onboarding-dot.active { background: var(--color-primary); width: 24px; border-radius: 4px; }
+    .onboarding-actions { display: flex; gap: var(--space-3); }
+
+    /* --- STATS DÉTAILLÉES --- */
+    .stats-page { display: grid; gap: var(--space-4); }
+    .stat-card {
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius-xl); padding: var(--space-4);
+    }
+    .stat-card-title { font-size: var(--text-xs); font-weight: 700; color: var(--color-text-muted); margin-bottom: var(--space-3); text-transform: uppercase; letter-spacing: .05em; }
+    .stat-big { font-size: 2.5rem; font-weight: 900; letter-spacing: -.05em; color: var(--color-primary); }
+    .stat-sub { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: 4px; }
+    .week-bars { display: flex; align-items: flex-end; gap: var(--space-2); height: 80px; margin-top: var(--space-3); }
+    .week-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .week-bar { width: 100%; border-radius: 4px 4px 0 0; background: var(--color-primary-soft); min-height: 4px; transition: height .4s cubic-bezier(.16,1,.3,1); }
+    .week-bar.today { background: var(--color-primary); }
+    .week-bar-label { font-size: 9px; color: var(--color-text-faint); font-weight: 600; }
+
     /* --- COMPTEUR QUOTIDIEN --- */
     .daily-goal {
       background: var(--color-surface); border: 1px solid var(--color-border);
@@ -734,7 +776,47 @@
         <div id="library-list"></div>
       </div>
 
-      <!-- IMPORT -->
+      <!-- PAGE STATS -->
+      <div class="page" data-route="stats">
+        <div class="page-header">
+          <h1 class="page-title">Statistiques</h1>
+          <p class="page-subtitle">Votre progression d'écoute.</p>
+        </div>
+        <div class="stats-page">
+          <!-- Total aujourd'hui -->
+          <div class="stat-card">
+            <div class="stat-card-title">⏱ Aujourd'hui</div>
+            <div class="stat-big" id="stats-today-val">0 min</div>
+            <div class="stat-sub" id="stats-today-goal">Objectif : 30 min</div>
+            <div style="margin-top:var(--space-3); height:8px; background:var(--color-border); border-radius:4px; overflow:hidden;">
+              <div id="stats-today-bar" style="height:100%; background:var(--color-primary); border-radius:4px; width:0%; transition:width .6s;"></div>
+            </div>
+          </div>
+          <!-- Progression hebdomadaire -->
+          <div class="stat-card">
+            <div class="stat-card-title">📅 Cette semaine</div>
+            <div class="week-bars" id="week-bars"></div>
+          </div>
+          <!-- Total global -->
+          <div class="stat-card" style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-4);">
+            <div>
+              <div class="stat-card-title">📚 Documents</div>
+              <div class="stat-big" id="stats-total-docs">0</div>
+              <div class="stat-sub">dans la bibliothèque</div>
+            </div>
+            <div>
+              <div class="stat-card-title">🎧 Total écouté</div>
+              <div class="stat-big" id="stats-total-min">0</div>
+              <div class="stat-sub">minutes au total</div>
+            </div>
+          </div>
+          <!-- Par document -->
+          <div class="stat-card">
+            <div class="stat-card-title">📄 Par document</div>
+            <div id="stats-per-doc" style="display:flex; flex-direction:column; gap:var(--space-2); margin-top:var(--space-2);"></div>
+          </div>
+        </div>
+      </div>
       <div class="page" data-route="import">
         <div class="page-header">
           <h1 class="page-title">Ajouter un document</h1>
@@ -838,9 +920,30 @@
       <button class="nav-item" data-route-nav="reader"><i data-lucide="headphones"></i>Lire</button>
       <button class="nav-item" data-route-nav="library"><i data-lucide="library"></i>Biblio</button>
       <button class="nav-item" data-route-nav="import"><i data-lucide="upload"></i>Importer</button>
-      <button class="nav-item" data-route-nav="summary"><i data-lucide="sparkles"></i>Résumé</button>
+      <button class="nav-item" data-route-nav="stats"><i data-lucide="bar-chart-2"></i>Stats</button>
     </nav>
   </div><!-- .app-shell -->
+
+  <!-- ONBOARDING -->
+  <div id="onboarding-overlay">
+    <div class="onboarding-card">
+      <div class="onboarding-icon" id="ob-icon">
+        <i data-lucide="headphones"></i>
+      </div>
+      <div class="onboarding-title" id="ob-title">Bienvenue sur SpeechifyPro</div>
+      <div class="onboarding-desc" id="ob-desc">Transformez vos PDF, articles et textes en audio avec surlignage synchronisé.</div>
+      <div class="onboarding-dots" id="ob-dots">
+        <div class="onboarding-dot active"></div>
+        <div class="onboarding-dot"></div>
+        <div class="onboarding-dot"></div>
+        <div class="onboarding-dot"></div>
+      </div>
+      <div class="onboarding-actions">
+        <button class="btn btn-outline" id="ob-skip" style="flex:1;">Passer</button>
+        <button class="btn btn-primary" id="ob-next" style="flex:2;">Suivant →</button>
+      </div>
+    </div>
+  </div>
 
   <!-- MODE ZEN — overlay téléprompter -->
   <div id="zen-overlay">
@@ -1292,9 +1395,13 @@
 
       function _speakChunk(chunkIdx) {
         if (!appState.playing || chunkIdx >= _chunks.length) {
+          // Fin de la lecture complète
+          const doc = appState.docs.find(d => d.id === appState.currentDocId);
           stopSpeechEngine();
           appState.currentWordIndex = 0;
           renderTextInReader(false);
+          // Notification de fin
+          if (doc) _notifyReadingDone(doc.title);
           return;
         }
         _chunkIndex    = chunkIdx;
@@ -1619,6 +1726,7 @@
         const nav = $(`.nav-item[data-route-nav="${route}"]`);
         if (nav) nav.classList.add('active');
         renderAll();
+        if (route === 'stats') renderStats();
       }
 
       function updateControlsUI() {
@@ -2484,8 +2592,9 @@
         _stopDailyTimer();
         _dailyTimer = setInterval(() => {
           if (!appState.playing) return;
-          appState.dailyDoneMin += 10 / 60; // 10 secondes en minutes
+          appState.dailyDoneMin += 10 / 60;
           renderDailyGoal();
+          _saveDailyToHistory();
           savePrefs();
         }, 10000);
       }
@@ -2712,6 +2821,149 @@
         }
       }
 
+      // ─── #8 ONBOARDING ───────────────────────────────────────────────────────
+      const ONBOARDING_STEPS = [
+        { icon: 'headphones',  title: 'Bienvenue sur SpeechifyPro', desc: 'Transformez vos PDF, articles et textes en audio avec surlignage synchronisé.' },
+        { icon: 'upload',      title: 'Importez vos documents',      desc: 'PDF, TXT, image OCR ou URL d\'article web — tout devient lisible et écoutable.' },
+        { icon: 'highlighter', title: 'Surlignage en temps réel',    desc: 'Chaque mot lu est surligné. Activez "Surlignage ON" et suivez la lecture visuellement.' },
+        { icon: 'eye-off',     title: 'Mode Zen immersif',           desc: 'Fond noir total, texte centré, téléprompter. Tap sur "Mode Zen" depuis la page Lecture.' },
+      ];
+      let _obStep = 0;
+
+      function _renderOnboardingStep(step) {
+        const s = ONBOARDING_STEPS[step];
+        $('#ob-icon').innerHTML   = `<i data-lucide="${s.icon}"></i>`;
+        $('#ob-title').textContent = s.title;
+        $('#ob-desc').textContent  = s.desc;
+        $$('#ob-dots .onboarding-dot').forEach((d, i) => d.classList.toggle('active', i === step));
+        $('#ob-next').textContent  = step === ONBOARDING_STEPS.length - 1 ? 'Commencer 🚀' : 'Suivant →';
+        if (window.lucide) lucide.createIcons();
+      }
+
+      function _closeOnboarding() {
+        $('#onboarding-overlay').classList.remove('active');
+        localStorage.setItem('speechify_onboarded', '1');
+      }
+
+      function _showOnboardingIfNeeded() {
+        if (!localStorage.getItem('speechify_onboarded')) {
+          _obStep = 0;
+          _renderOnboardingStep(0);
+          $('#onboarding-overlay').classList.add('active');
+        }
+      }
+
+      $('#ob-next')?.addEventListener('click', () => {
+        _obStep++;
+        if (_obStep >= ONBOARDING_STEPS.length) { _closeOnboarding(); return; }
+        _renderOnboardingStep(_obStep);
+      });
+      $('#ob-skip')?.addEventListener('click', _closeOnboarding);
+
+      // ─── #10 STATISTIQUES DÉTAILLÉES ─────────────────────────────────────────
+      function _getWeekData() {
+        const data = [];
+        for (let i = 6; i >= 0; i--) {
+          const d   = new Date();
+          d.setDate(d.getDate() - i);
+          const key = `speechify_day_${d.toISOString().slice(0, 10)}`;
+          const val = parseFloat(localStorage.getItem(key) || '0');
+          data.push({ label: ['Di','Lu','Ma','Me','Je','Ve','Sa'][d.getDay()], val, isToday: i === 0 });
+        }
+        return data;
+      }
+
+      function renderStats() {
+        // Aujourd'hui
+        const done = appState.dailyDoneMin || 0;
+        const goal = appState.dailyGoalMin || 30;
+        const pct  = Math.min(100, Math.round((done / goal) * 100));
+        const todayEl = $('#stats-today-val');
+        const goalEl  = $('#stats-today-goal');
+        const barEl   = $('#stats-today-bar');
+        if (todayEl) todayEl.textContent = done.toFixed(1) + ' min';
+        if (goalEl)  goalEl.textContent  = `Objectif : ${goal} min (${pct}%)`;
+        if (barEl)   barEl.style.width   = pct + '%';
+
+        // Semaine
+        const weekEl = $('#week-bars');
+        if (weekEl) {
+          const days   = _getWeekData();
+          const maxVal = Math.max(...days.map(d => d.val), 1);
+          weekEl.innerHTML = days.map(d => `
+            <div class="week-bar-wrap">
+              <div class="week-bar${d.isToday ? ' today' : ''}"
+                style="height:${Math.max(4, Math.round((d.val / maxVal) * 72))}px"
+                title="${d.val.toFixed(1)} min"></div>
+              <div class="week-bar-label">${d.label}</div>
+            </div>`).join('');
+        }
+
+        // Totaux
+        const totalDocs = appState.docs.length;
+        const totalMin  = appState.docs.reduce((acc, d) => acc + (d.minutes || 0), 0);
+        const tdEl = $('#stats-total-docs');
+        const tmEl = $('#stats-total-min');
+        if (tdEl) tdEl.textContent = totalDocs;
+        if (tmEl) tmEl.textContent = totalMin;
+
+        // Par document
+        const perDocEl = $('#stats-per-doc');
+        if (perDocEl) {
+          perDocEl.innerHTML = appState.docs.map(d => {
+            const p = d.wordIndex && d.content
+              ? Math.round((d.wordIndex / d.content.split(/(\s+)/).length) * 100) : (d.progress || 0);
+            return `
+              <div style="display:flex; align-items:center; gap:var(--space-3);">
+                <div style="flex:1; min-width:0;">
+                  <div style="font-size:var(--text-xs); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${d.title}</div>
+                  <div style="height:4px; background:var(--color-border); border-radius:2px; margin-top:4px; overflow:hidden;">
+                    <div style="height:100%; width:${p}%; background:var(--color-primary); border-radius:2px;"></div>
+                  </div>
+                </div>
+                <span style="font-size:10px; font-weight:800; color:var(--color-primary); flex-shrink:0;">${p}%</span>
+              </div>`;
+          }).join('') || '<p style="font-size:11px;color:var(--color-text-faint);">Aucun document.</p>';
+        }
+      }
+
+      // Sauvegarder les minutes du jour dans localStorage (clé par date)
+      function _saveDailyToHistory() {
+        const key = `speechify_day_${_todayStr()}`;
+        localStorage.setItem(key, (appState.dailyDoneMin || 0).toFixed(2));
+      }
+
+      // ─── #11 NOTIFICATION FIN DE LECTURE ─────────────────────────────────────
+      async function _requestNotifPermission() {
+        if (!('Notification' in window)) return;
+        if (Notification.permission === 'default') {
+          await Notification.requestPermission();
+        }
+      }
+
+      function _notifyReadingDone(docTitle) {
+        if (!('Notification' in window) || Notification.permission !== 'granted') return;
+        // Sur Android PWA installée, la notification s'affiche en système
+        try {
+          if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({
+              type: 'NOTIFY',
+              title: '✅ Lecture terminée',
+              body: `"${docTitle}" a été lu entièrement.`,
+              icon: './icons/icon-192.png'
+            });
+          } else {
+            // Fallback navigateur
+            new Notification('✅ Lecture terminée', {
+              body: `"${docTitle}" a été lu entièrement.`,
+              icon: './icons/icon-192.png',
+              badge: './icons/icon-192.png',
+              silent: false
+            });
+          }
+        } catch(e) { console.warn('Notification échouée:', e); }
+      }
+
       // ─── BOOTSTRAP ASYNC ─────────────────────────────────────────────────────
       initStorage().then(() => {
         // Restaurer thème
@@ -2756,6 +3008,12 @@
 
         renderAll();
         navigate('home');
+
+        // Onboarding première utilisation
+        setTimeout(_showOnboardingIfNeeded, 800);
+
+        // Demander permission notifications (après interaction utilisateur)
+        setTimeout(_requestNotifPermission, 3000);
 
         if (window.lucide) lucide.createIcons();
       }).catch(err => {
