@@ -1248,6 +1248,9 @@
 
       // --- SYNTHÈSE VOCALE ---
       let synthVoices = [];
+      let _voiceRetryCount = 0;
+      const _VOICE_RETRY_MAX = 15; // jusqu'à 15 tentatives × 500ms = 7.5s
+
       function _voiceQuality(v) {
         const n = v.name.toLowerCase();
         if (n.includes('google') || n.includes('neural') || n.includes('enhanced') || n.includes('premium')) return 3;
@@ -1262,33 +1265,49 @@
         return '— Réseau';
       }
 
-      function loadSystemVoices() {
+      function loadSystemVoices(forceRefresh = false) {
         if (!('speechSynthesis' in window)) return;
-        synthVoices = window.speechSynthesis.getVoices();
+        const voices = window.speechSynthesis.getVoices();
+
+        // Si liste vide et pas encore au max de retries → réessayer
+        if (!voices.length && _voiceRetryCount < _VOICE_RETRY_MAX) {
+          _voiceRetryCount++;
+          setTimeout(() => loadSystemVoices(), 500);
+          return;
+        }
+
+        // Mise à jour uniquement si la liste a changé ou si forceRefresh
+        const hasMore = voices.length > synthVoices.length;
+        if (!hasMore && !forceRefresh && synthVoices.length) return;
+
+        synthVoices = voices;
+        _voiceRetryCount = 0;
+
         if (appState.playing) return;
         const select = $('#voice-select');
         if (!select) return;
         select.innerHTML = '';
 
-        // Filtrer FR + EN, trier : Google > Neural > locale > réseau, puis FR avant EN
+        // Filtrer FR + EN, trier : Google > Neural > locale > réseau
         let list = synthVoices.filter(v => v.lang.startsWith('fr') || v.lang.startsWith('en'));
-        if (!list.length) list = synthVoices;
+        if (!list.length) list = [...synthVoices];
         list.sort((a, b) => {
-          // FR en premier
           const aFr = a.lang.startsWith('fr') ? 0 : 1;
           const bFr = b.lang.startsWith('fr') ? 0 : 1;
           if (aFr !== bFr) return aFr - bFr;
-          // Puis qualité décroissante
           return _voiceQuality(b) - _voiceQuality(a);
         });
 
-        // Grouper FR / EN
+        // Compter les voix Google pour le badge
+        const googleCount = list.filter(v => _voiceQuality(v) === 3).length;
+
+        // Grouper FR / EN avec séparateurs
         let lastLangGroup = '';
         list.forEach(v => {
           const group = v.lang.startsWith('fr') ? 'Français' : 'English';
           if (group !== lastLangGroup) {
             const sep = document.createElement('optgroup');
-            sep.label = group;
+            sep.label = `── ${group} ──`;
             select.appendChild(sep);
             lastLangGroup = group;
           }
@@ -1297,21 +1316,64 @@
           opt.textContent = `${_voiceQualityLabel(v)} · ${v.name}`;
           if (v.name === appState.selectedVoiceName) opt.selected = true;
           else if (v.lang.startsWith('fr') && !appState.selectedVoiceName) {
-            appState.selectedVoiceName = v.name;
-            opt.selected = true;
+            // Auto-sélectionner la meilleure voix FR disponible (Google en priorité)
+            const bestFr = list.find(x => x.lang.startsWith('fr') && _voiceQuality(x) === 3)
+                        || list.find(x => x.lang.startsWith('fr'));
+            if (bestFr && v.name === bestFr.name) {
+              appState.selectedVoiceName = v.name;
+              opt.selected = true;
+            }
           }
           select.appendChild(opt);
         });
-        if (!appState.selectedVoiceName && list.length) appState.selectedVoiceName = list[0].name;
+        if (!appState.selectedVoiceName && list.length) {
+          appState.selectedVoiceName = list[0].name;
+          select.value = list[0].name;
+        }
 
-        // Badge qualité de la voix sélectionnée
+        // Badge qualité
         const cur = list.find(v => v.name === appState.selectedVoiceName);
         const badge = $('#voice-quality-badge');
-        if (badge && cur) badge.textContent = _voiceQualityLabel(cur);
+        if (badge && cur) {
+          badge.textContent = _voiceQualityLabel(cur);
+          // Couleur selon qualité
+          badge.style.background = _voiceQuality(cur) === 3
+            ? 'rgba(109,108,255,.25)' : 'var(--color-primary-soft)';
+        }
+
+        // Notification si nouvelles voix Google détectées
+        if (googleCount > 0 && forceRefresh) {
+          toast(`✅ ${googleCount} voix HD trouvée${googleCount > 1 ? 's' : ''} !`);
+        }
       }
+
+      // Bouton "Actualiser les voix" dans les réglages
+      function _addVoiceRefreshBtn() {
+        const voiceRow = $('#voice-quality-badge')?.closest('div');
+        if (!voiceRow || $('#voice-refresh-btn')) return;
+        const btn = document.createElement('button');
+        btn.id = 'voice-refresh-btn';
+        btn.style.cssText = 'font-size:10px;padding:2px 8px;border-radius:99px;border:1px solid var(--color-border);background:var(--color-surface-2);color:var(--color-text-muted);cursor:pointer;';
+        btn.textContent = '🔄 Actualiser';
+        btn.addEventListener('click', () => {
+          btn.textContent = '⏳…';
+          _voiceRetryCount = 0;
+          synthVoices = [];
+          loadSystemVoices(true);
+          setTimeout(() => { btn.textContent = '🔄 Actualiser'; }, 2000);
+        });
+        voiceRow.appendChild(btn);
+      }
+
       if ('speechSynthesis' in window) {
-        window.speechSynthesis.onvoiceschanged = loadSystemVoices;
+        // onvoiceschanged peut se déclencher plusieurs fois sur Android
+        window.speechSynthesis.onvoiceschanged = () => loadSystemVoices();
+        // Premier chargement avec retry automatique
         loadSystemVoices();
+        // Second essai après 1s (Android Chrome est souvent lent)
+        setTimeout(() => loadSystemVoices(), 1000);
+        // Ajouter le bouton actualiser une fois le DOM prêt
+        setTimeout(_addVoiceRefreshBtn, 500);
       }
 
       // ─── MOTEUR VOCAL v3 — SYNC PAR TIMER (Android-safe) ────────────────────
