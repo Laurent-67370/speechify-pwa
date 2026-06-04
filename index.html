@@ -2139,32 +2139,50 @@
           || raw.replace(/\.[a-z]{2,4}$/i, '').trim(); // fallback
       }
 
+      // Limite max : ~100 000 mots (~60 min à 1.4x) pour éviter le freeze Android
+      const MAX_WORDS_IMPORT = 80000;
+      const MAX_CHARS_IMPORT = MAX_WORDS_IMPORT * 6; // ~480 000 chars
+
       async function insertDocToLibrary(title, content, type, source) {
         stopLoader();
         if (!content || !content.trim()) content = "Le document extrait ne contient aucun texte exploitable.";
         const cleanedTitle = _cleanTitle(title);
+
+        // Si le contenu est trop volumineux → tronquer et prévenir
+        const words = content.split(/\s+/);
+        let finalContent = content;
+        let truncated = false;
+        if (words.length > MAX_WORDS_IMPORT) {
+          finalContent = words.slice(0, MAX_WORDS_IMPORT).join(' ');
+          truncated = true;
+        }
+
         const id   = Date.now();
-        const segs = content.split('.').filter(s => s.trim().length > 10);
+        const segs = finalContent.split('.').filter(s => s.trim().length > 10);
         const doc  = {
-          id, title: cleanedTitle, content, type, source,
+          id, title: cleanedTitle, content: finalContent, type, source,
           language: 'Français',
-          minutes:  Math.max(2, Math.round(content.split(/\s+/).length / 150)),
+          minutes:  Math.max(2, Math.round(finalContent.split(/\s+/).length / 150)),
           progress: 0,
           wordIndex: 0,
           summary: [
             { headline: segs[0] ? segs[0].trim().substring(0, 80) + '.' : "Analyse du fichier importé.", detail: "Extrait généré suite à l'analyse automatique du document." },
             { headline: "Segmentation structurelle.", detail: "Points d'intérêt sémantiques identifiés pour l'écoute vocale." }
           ],
-          insights: [{ headline: "Archivage IndexedDB", detail: "Fichier stocké localement sans limite de taille." }]
+          insights: [{ headline: "Archivage IndexedDB", detail: "Fichier stocké localement." }]
         };
         appState.docs.unshift(doc);
         appState.currentDocId = id;
         stopSpeechEngine();
         appState.currentWordIndex = 0;
-        appState.wordsArray = content.split(/(\s+)/);
+        appState.wordsArray = finalContent.split(/(\s+)/);
         await saveDoc(doc);
         renderAll();
-        toast("✅ « " + cleanedTitle + " » ajouté !");
+        if (truncated) {
+          toast("⚠️ Document tronqué à " + MAX_WORDS_IMPORT.toLocaleString() + " mots pour éviter les lenteurs (≈" + Math.round(MAX_WORDS_IMPORT/150) + " min)");
+        } else {
+          toast("✅ « " + cleanedTitle + " » ajouté !");
+        }
       }
 
       // --- RENDU GLOBAL ---
