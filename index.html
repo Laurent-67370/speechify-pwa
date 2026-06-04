@@ -325,13 +325,19 @@
     /* Zone de texte téléprompter */
     #zen-text {
       width: 100%; max-width: 560px;
-      max-height: 70vh; overflow: hidden;
+      height: calc(100vh - 160px); /* laisser 160px pour les contrôles en bas */
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-width: none;
       font-size: clamp(1.4rem, 4vw, 2rem);
       line-height: 1.9;
       color: rgba(255,255,255,.45);
       text-align: center;
       position: relative;
+      padding-bottom: 80px; /* espace sous le dernier mot visible */
+      -ms-overflow-style: none;
     }
+    #zen-text::-webkit-scrollbar { display: none; }
     /* Mot actif en zen */
     #zen-text .zen-word { cursor: pointer; transition: color .1s; border-radius: 4px; padding: 0 2px; }
     #zen-text .zen-word.word-highlight {
