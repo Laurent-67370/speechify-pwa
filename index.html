@@ -2146,7 +2146,7 @@
           .replace(/https?:\/\/[^\s]+/g, '')       // URLs
           .replace(/[_]{2,}/g, ' ')                 // __ multiples
           .replace(/\.[a-z]{2,4}$/i, '')            // extension (.pdf .txt)
-          .replace(/[^\w\sÀ-ÿ'«»\-–]/g, ' ')       // caractères spéciaux
+          .replace(/[^\w\sÀ-ÿ\u2019«»\-–]/g, ' ')       // caractères spéciaux
           .replace(/\s{2,}/g, ' ')                   // espaces multiples
           .trim()
           || raw.replace(/\.[a-z]{2,4}$/i, '').trim(); // fallback
