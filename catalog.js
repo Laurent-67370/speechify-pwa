@@ -1,4 +1,3 @@
-// SpeechifyPro — Catalogue et fonctions librairie
 var LIBRARY_CATALOG = [
   // COUPS DE CŒUR
   { id:'g1',  gutId:17489, title:'Les Misérables',               author:'Victor Hugo',          emoji:'🏛️', color:'#1a237e', cat:['roman','fr','featured'], lang:'fr', desc:'Le chef-d\'œuvre de Victor Hugo — Jean Valjean et sa rédemption dans la France du XIXe siècle.' },
@@ -37,188 +36,123 @@ var LIBRARY_CATALOG = [
   { id:'g24', gutId:8800,  title:'The Divine Comedy',          author:'Dante Alighieri',      emoji:'🔥', color:'#b71c1c', cat:['poesie'],                lang:'en', desc:'The epic journey through Hell, Purgatory, and Paradise.' },
 ];
 
-document.addEventListener('DOMContentLoaded', function() {
-let _libCurrentCat = 'all';
-let _libSearchQuery = '';
+// ── Variables librairie
+var _libCurrentCat = 'all';
+var _libSearchQuery = '';
 
-async function _getGutenbergLinks(gutId) {
-
-function _libBookCard(book) {
-  const div = document.createElement('div');
-  div.className = 'lib-book-card';
-  div.innerHTML = `
-    <div class="lib-book-cover" style="background:${book.color};">
-<div class="lib-book-emoji">${book.emoji}</div>
-<div class="lib-book-cover-title">${book.title}</div>
-    </div>
-    <div class="lib-book-title">${book.title}</div>
-    <div class="lib-book-author">${book.author}</div>`;
-  div.addEventListener('click', () => _openLibModal(book));
-  return div;
-}
-
-function _libListItem(book) {
-  const formats = Object.keys(book.formats || {});
-  const div = document.createElement('div');
-  div.className = 'lib-list-item';
-  div.innerHTML = `
-    <div class="lib-list-cover" style="background:${book.color}20;">${book.emoji}</div>
-    <div class="lib-list-info">
-<div class="lib-list-title">${book.title}</div>
-<div class="lib-list-author">${book.author}</div>
-<div class="lib-list-badges">
-  ${formats.map(f => `<span class="lib-format-badge ${f}">${f.toUpperCase()}</span>`).join('')}
-  <span class="lib-format-badge">${book.lang === 'fr' ? '🇫🇷 FR' : '🇬🇧 EN'}</span>
-</div>
-    </div>`;
-  div.addEventListener('click', () => _openLibModal(book));
-  return div;
-}
-
+// ── Fonctions librairie (globales, hoistées)
 function renderLibrary() {
-  const q   = _libSearchQuery.toLowerCase().trim();
-  const cat = _libCurrentCat;
-
-  // Filtrer
-  let books = LIBRARY_CATALOG.filter(b => {
-    const matchCat = cat === 'all' || b.cat.includes(cat);
-    const matchQ   = !q || b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q);
+  var q = _libSearchQuery.toLowerCase().trim();
+  var cat = _libCurrentCat;
+  var books = LIBRARY_CATALOG.filter(function(b) {
+    var matchCat = cat === 'all' || b.cat.indexOf(cat) !== -1;
+    var matchQ = !q || b.title.toLowerCase().indexOf(q) !== -1 || b.author.toLowerCase().indexOf(q) !== -1;
     return matchCat && matchQ;
   });
 
   if (q) {
-    // Mode recherche : liste
-    $('#lib-default-sections').style.display = 'none';
-    $('#lib-search-results').style.display = 'block';
-    $('#lib-result-count').textContent = `(${books.length})`;
-    const list = $('#lib-results-list');
+    document.getElementById('lib-default-sections').style.display = 'none';
+    document.getElementById('lib-search-results').style.display = 'block';
+    var countEl = document.getElementById('lib-result-count');
+    if (countEl) countEl.textContent = '(' + books.length + ')';
+    var list = document.getElementById('lib-results-list');
+    if (!list) return;
     list.innerHTML = '';
     if (!books.length) {
-list.innerHTML = '<p style="text-align:center;color:var(--color-text-faint);padding:var(--space-4);">Aucun résultat</p>';
+      list.innerHTML = '<p style="font-size:11px;color:var(--color-text-faint);text-align:center;padding:16px;">Aucun résultat</p>';
     } else {
-books.forEach(b => list.appendChild(_libListItem(b)));
+      books.forEach(function(b) { list.appendChild(_libListItem(b)); });
     }
   } else {
-    // Mode défaut : carrousels par section
-    $('#lib-default-sections').style.display = 'block';
-    $('#lib-search-results').style.display = 'none';
-
-    const fillScroll = (id, filter) => {
-const el = $(`#${id}`);
-if (!el) return;
-el.innerHTML = '';
-const filtered = books.filter(filter);
-if (!filtered.length) {
-  el.innerHTML = '<p style="font-size:11px;color:var(--color-text-faint);padding:var(--space-2);">Aucun livre dans cette catégorie.</p>';
-  return;
-}
-filtered.forEach(b => el.appendChild(_libBookCard(b)));
-    };
-
-    fillScroll('lib-featured', b => b.cat.includes('featured'));
-    fillScroll('lib-romans',   b => b.cat.includes('roman'));
-    fillScroll('lib-philo',    b => b.cat.includes('philo'));
-    fillScroll('lib-fr', b => b.lang === 'fr');
+    document.getElementById('lib-default-sections').style.display = 'block';
+    document.getElementById('lib-search-results').style.display = 'none';
+    _fillScroll('lib-featured', books, function(b) { return b.cat.indexOf('featured') !== -1; });
+    _fillScroll('lib-romans',   books, function(b) { return b.cat.indexOf('roman') !== -1; });
+    _fillScroll('lib-philo',    books, function(b) { return b.cat.indexOf('philo') !== -1; });
+    _fillScroll('lib-fr',       books, function(b) { return b.lang === 'fr'; });
   }
 }
 
-function _openLibModal(book) {
-  $('#lib-modal-cover').style.background = book.color + '30';
-  $('#lib-modal-cover').textContent = book.emoji;
-  $('#lib-modal-title').textContent  = book.title;
-  $('#lib-modal-author').textContent = book.author;
-  $('#lib-modal-desc').textContent   = book.desc;
-  $('#lib-modal-badges').innerHTML   =
-    `<span class="lib-format-badge">${book.lang === 'fr' ? '🇫🇷 FR' : '🇬🇧 EN'}</span>`;
-
-  const actions = $('#lib-modal-actions');
-  actions.innerHTML = '<div style="text-align:center;color:var(--color-text-faint);font-size:var(--text-xs);padding:var(--space-3);">⏳ Chargement des liens…</div>';
-
-  $('#lib-modal').classList.add('active');
-
-  // Charger les liens réels via Gutendex API
-  _getGutenbergLinks(book.gutId).then(links => {
-    actions.innerHTML = '';
-
-    // Bouton "Lire maintenant" si lien TXT disponible
-    if (links.txt) {
-const btnRead = document.createElement('button');
-btnRead.className = 'btn btn-primary';
-btnRead.innerHTML = '▶ Lire maintenant (import texte)';
-btnRead.addEventListener('click', () => {
-  $('#lib-modal').classList.remove('active');
-  navigate('import');
-  const inp = $('#url-import-input');
-  if (inp) inp.value = links.txt;
-  toast(`⏳ Import de "${book.title}"…`);
-  setTimeout(() => importFromUrl(links.txt), 300);
-});
-actions.appendChild(btnRead);
-    }
-
-    // Bouton EPUB
-    if (links.epub) {
-const a = document.createElement('a');
-a.className = 'btn btn-outline';
-a.href = links.epub; a.target = '_blank'; a.rel = 'noopener';
-a.style.textAlign = 'center'; a.textContent = '⬇ Télécharger EPUB';
-actions.appendChild(a);
-    }
-
-    // Bouton HTML (lire en ligne)
-    if (links.html) {
-const a = document.createElement('a');
-a.className = 'btn btn-outline';
-a.href = links.html; a.target = '_blank'; a.rel = 'noopener';
-a.style.textAlign = 'center'; a.textContent = '🌐 Lire en ligne (HTML)';
-actions.appendChild(a);
-    }
-
-    // Toujours : lien page Gutenberg
-    const gutLink = links.page || `https://www.gutenberg.org/ebooks/${book.gutId}`;
-    const btnGut = document.createElement('a');
-    btnGut.className = 'btn btn-outline';
-    btnGut.href = gutLink; btnGut.target = '_blank'; btnGut.rel = 'noopener';
-    btnGut.style.textAlign = 'center';
-    btnGut.textContent = '🔗 Page Project Gutenberg (tous formats)';
-    actions.appendChild(btnGut);
-
-    // Mettre à jour les badges formats
-    const badges = $('#lib-modal-badges');
-    if (links.txt)  badges.innerHTML += '<span class="lib-format-badge txt">TXT</span>';
-    if (links.epub) badges.innerHTML += '<span class="lib-format-badge epub">EPUB</span>';
-    if (links.html) badges.innerHTML += '<span class="lib-format-badge">HTML</span>';
-
-  }).catch(() => {
-    actions.innerHTML = `<a class="btn btn-primary" href="https://www.gutenberg.org/ebooks/${book.gutId}" target="_blank" rel="noopener" style="text-align:center;">🔗 Ouvrir sur Project Gutenberg</a>`;
-  });
+function _fillScroll(id, books, filterFn) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = '';
+  var filtered = books.filter(filterFn);
+  if (!filtered.length) {
+    el.innerHTML = '<p style="font-size:11px;color:var(--color-text-faint);padding:8px;">Aucun livre.</p>';
+    return;
+  }
+  filtered.forEach(function(b) { el.appendChild(_libBookCard(b)); });
 }
 
-$('#lib-modal-close')?.addEventListener('click', () => {
-  $('#lib-modal').classList.remove('active');
-});
-$('#lib-modal')?.addEventListener('click', (e) => {
-  if (e.target === $('#lib-modal')) $('#lib-modal').classList.remove('active');
-});
+function _libBookCard(book) {
+  var div = document.createElement('div');
+  div.className = 'lib-book-card';
+  div.innerHTML = '<div class="lib-book-cover" style="background:' + book.color + '"><div class="lib-book-emoji">' + book.emoji + '</div><div class="lib-book-cover-title">' + book.title + '</div></div><div class="lib-book-title">' + book.title + '</div><div class="lib-book-author">' + book.author + '</div>';
+  div.addEventListener('click', function() { _openLibModal(book); });
+  return div;
+}
 
-$('#lib-search')?.addEventListener('input', (e) => {
-  _libSearchQuery = e.target.value;
-  renderLibrary();
-});
-$('#lib-search-btn')?.addEventListener('click', () => {
-  _libSearchQuery = $('#lib-search').value;
-  renderLibrary();
-});
+function _libListItem(book) {
+  var div = document.createElement('div');
+  div.className = 'lib-list-item';
+  div.innerHTML = '<div class="lib-list-cover" style="background:' + book.color + '20">' + book.emoji + '</div><div class="lib-list-info"><div class="lib-list-title">' + book.title + '</div><div class="lib-list-author">' + book.author + '</div></div>';
+  div.addEventListener('click', function() { _openLibModal(book); });
+  return div;
+}
 
-$$('.lib-cat-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    $$('.lib-cat-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    _libCurrentCat = btn.dataset.cat;
-    _libSearchQuery = '';
-    $('#lib-search').value = '';
+function _openLibModal(book) {
+  var modal = document.getElementById('lib-modal');
+  if (!modal) return;
+  document.getElementById('lib-modal-cover').style.background = book.color + '30';
+  document.getElementById('lib-modal-cover').textContent = book.emoji;
+  document.getElementById('lib-modal-title').textContent = book.title;
+  document.getElementById('lib-modal-author').textContent = book.author;
+  document.getElementById('lib-modal-desc').textContent = book.desc;
+  var actions = document.getElementById('lib-modal-actions');
+  actions.innerHTML = '';
+  var btnGut = document.createElement('a');
+  btnGut.className = 'btn btn-outline';
+  btnGut.href = 'https://www.gutenberg.org/ebooks/' + book.gutId;
+  btnGut.target = '_blank';
+  btnGut.rel = 'noopener';
+  btnGut.style.textAlign = 'center';
+  btnGut.textContent = 'Ouvrir sur Project Gutenberg';
+  actions.appendChild(btnGut);
+  modal.classList.add('active');
+}
+
+// ── Init listeners (appelé depuis DOMContentLoaded de index.html)
+function _initLibraryListeners() {
+  var searchEl = document.getElementById('lib-search');
+  var searchBtn = document.getElementById('lib-search-btn');
+  var modalClose = document.getElementById('lib-modal-close');
+  var modal = document.getElementById('lib-modal');
+
+  if (searchEl) searchEl.addEventListener('input', function(e) {
+    _libSearchQuery = e.target.value;
     renderLibrary();
   });
-});
-});
-});
+  if (searchBtn) searchBtn.addEventListener('click', function() {
+    _libSearchQuery = document.getElementById('lib-search').value;
+    renderLibrary();
+  });
+  if (modalClose) modalClose.addEventListener('click', function() {
+    modal && modal.classList.remove('active');
+  });
+  if (modal) modal.addEventListener('click', function(e) {
+    if (e.target === modal) modal.classList.remove('active');
+  });
+  var catBtns = document.querySelectorAll('.lib-cat-btn');
+  catBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      catBtns.forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      _libCurrentCat = btn.dataset.cat;
+      _libSearchQuery = '';
+      var s = document.getElementById('lib-search');
+      if (s) s.value = '';
+      renderLibrary();
+    });
+  });
+}
