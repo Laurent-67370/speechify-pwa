@@ -1984,58 +1984,69 @@
         box.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
       }
 
+      // Fenêtre de rendu : max 600 tokens affichés à la fois
+      const RENDER_WINDOW = 600;
+
       function renderTextInReader(wrap = false) {
         const doc = appState.docs.find(d => d.id === appState.currentDocId);
         const box = $('#reader-text');
         if (!doc) { box.textContent = "Aucun texte chargé."; return; }
-        if (wrap && appState.wordsArray.length) {
-          box.innerHTML = appState.wordsArray.map((chunk, i) =>
-            chunk.trim() === '' ? chunk : `<span id="word-${i}">${chunk}</span>`
-          ).join('');
-          // Ajouter un clic sur chaque mot → relancer la lecture depuis ce mot
-          $$('#reader-text span').forEach(span => {
-            span.addEventListener('click', () => {
-              const idx = parseInt(span.id.replace('word-', ''));
-              if (isNaN(idx)) return;
-              appState.currentWordIndex = idx;
-              if (appState.playing) {
-                stopSpeechEngine();
-                setTimeout(() => startSpeechEngine(), 80);
-              } else {
-                autoHighlightAndCenter(idx);
-                // Si pas en lecture, un clic lance la lecture
-                $('#play-toggle').disabled = true;
-                $('#reader-play').disabled = true;
-                startSpeechEngine();
-              }
-            });
-          });
-          if (appState.currentWordIndex > 0) autoHighlightAndCenter(appState.currentWordIndex);
-        } else {
-          // Mode statique : afficher les spans pour permettre la sélection
-          const docWords = doc.content.split(/\s+/);
-          box.innerHTML = docWords.map((w, idx) => `<span id="word-s${idx}">${w}</span>`).join(' ');
-          // Clic sur un mot en mode statique → go reader + lecture depuis ce mot
-          $$('#reader-text span').forEach(span => {
-            span.addEventListener('click', () => {
-              const idx = parseInt(span.id.replace('word-s', ''));
-              if (isNaN(idx)) return;
-              // Recalculer l'index dans wordsArray (qui inclut les espaces)
-              if (!appState.wordsArray.length) appState.wordsArray = doc.content.split(/(\s+)/);
-              // Trouver l'index dans wordsArray correspondant au Nième mot réel
-              let realWordCount = 0;
-              for (let i = 0; i < appState.wordsArray.length; i++) {
-                if (appState.wordsArray[i].trim() !== '') {
-                  if (realWordCount === idx) { appState.currentWordIndex = i; break; }
-                  realWordCount++;
-                }
-              }
-              $('#play-toggle').disabled = true;
-              $('#reader-play').disabled = true;
+
+        const wa  = appState.wordsArray;
+        if (!wa || !wa.length) { box.textContent = doc.content.substring(0, 2000); return; }
+
+        // Calculer la fenêtre autour de la position courante
+        const cur     = appState.currentWordIndex || 0;
+        const winStart = Math.max(0, cur - 100);
+        const winEnd   = Math.min(wa.length, winStart + RENDER_WINDOW);
+        const slice    = wa.slice(winStart, winEnd);
+
+        // Construire le HTML avec spans uniquement pour la fenêtre
+        const html = slice.map((chunk, i) => {
+          const absIdx = winStart + i;
+          if (chunk.trim() === '') return chunk;
+          return '<span id="word-' + absIdx + '">' + chunk + '</span>';
+        }).join('');
+
+        // Indicateurs de navigation si contenu tronqué
+        const prefix = winStart > 0
+          ? '<div style="text-align:center;padding:8px;color:var(--color-text-faint);font-size:11px;cursor:pointer;" id="prev-window">▲ ' + winStart + ' mots précédents</div>'
+          : '';
+        const suffix = winEnd < wa.length
+          ? '<div style="text-align:center;padding:8px;color:var(--color-text-faint);font-size:11px;cursor:pointer;" id="next-window">▼ ' + (wa.length - winEnd) + ' mots suivants</div>'
+          : '';
+
+        box.innerHTML = prefix + html + suffix;
+
+        // Navigation par fenêtres
+        const prevBtn = $('#prev-window');
+        const nextBtn = $('#next-window');
+        if (prevBtn) prevBtn.addEventListener('click', () => {
+          appState.currentWordIndex = Math.max(0, cur - RENDER_WINDOW + 100);
+          renderTextInReader(wrap);
+        });
+        if (nextBtn) nextBtn.addEventListener('click', () => {
+          appState.currentWordIndex = Math.min(wa.length - 1, winEnd);
+          renderTextInReader(wrap);
+        });
+
+        // Listeners de clic sur les mots (pour lancer la lecture depuis un mot)
+        box.querySelectorAll('span[id^="word-"]').forEach(span => {
+          span.addEventListener('click', () => {
+            const idx = parseInt(span.id.replace('word-', ''));
+            if (isNaN(idx)) return;
+            appState.currentWordIndex = idx;
+            if (appState.playing) {
+              stopSpeechEngine();
+              setTimeout(() => startSpeechEngine(), 80);
+            } else {
               startSpeechEngine();
-            });
+            }
           });
-        }
+        });
+
+        // Centrer sur le mot courant
+        if (cur > 0) autoHighlightAndCenter(cur);
       }
 
       // ✅ FIX PRINCIPAL : Chargement de fichier PDF/TXT corrigé
@@ -2139,8 +2150,8 @@
           || raw.replace(/\.[a-z]{2,4}$/i, '').trim(); // fallback
       }
 
-      // Limite max : ~100 000 mots (~60 min à 1.4x) pour éviter le freeze Android
-      const MAX_WORDS_IMPORT = 80000;
+      // Limite max : 200 000 mots (~22h d'écoute) — rendu en fenêtre glissante
+      const MAX_WORDS_IMPORT = 200000;
       const MAX_CHARS_IMPORT = MAX_WORDS_IMPORT * 6; // ~480 000 chars
 
       async function insertDocToLibrary(title, content, type, source) {
