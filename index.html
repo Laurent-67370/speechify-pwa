@@ -1459,41 +1459,7 @@
     ];
   </script>
 <script>
-    // ✅ FIX CRITIQUE : Configurer le worker PDF.js AVANT tout usage
-    if (typeof pdfjsLib !== 'undefined') {
-      pdfjsLib.GlobalWorkerOptions.workerSrc =
-        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      if (window.lucide) lucide.createIcons();
-
-      // Waveform
-      const waveform = document.getElementById('waveform');
-      const heights = [20,45,30,60,75,35,50,70,40,80,55,45,65,30,50,65,40,75,50,55,65,35,45,60];
-      waveform.innerHTML = heights.map((h, i) => `<span style="--i:${i}; height:${h}%"></span>`).join('');
-
-      // Bibliothèque initiale de démonstration
-
-      const appState = {
-        route: 'home', playing: false, currentFilter: 'all', search: '', sortAsc: false,
-        highlight: true, speed: 1.4, selectedVoiceName: '', currentDocId: null,
-        isFocusMode: false, theme: 'dark', docs: [], wordsArray: [], currentWordIndex: 0,
-        syncSpeed: 9,
-        pitch: 1.0,
-        pauseMs: 400,
-        readMode: 'sentence',
-        dailyGoalMin: 30,
-        dailyDoneMin: 0,
-        dailyDate: '',
-      };
-
-      const $ = (sel) => document.querySelector(sel);
-      const $$ = (sel) => [...document.querySelectorAll(sel)];
-
-      // ─── PERSISTANCE COMPLÈTE — IndexedDB (docs) + localStorage (prefs) ────────
-
-      // Préférences légères → localStorage
+// ── Fonctions utilitaires (script séparé)
       function savePrefs() {
         const prefs = {
           theme:             appState.theme,
@@ -1514,7 +1480,6 @@
         };
         localStorage.setItem('speechify_prefs', JSON.stringify(prefs));
       }
-
       function loadPrefs() {
         try {
           const raw = localStorage.getItem('speechify_prefs');
@@ -1537,13 +1502,6 @@
           if (p.readMode)          appState.readMode          = p.readMode;
         } catch(e) {}
       }
-
-      // Contenu des docs → IndexedDB (pas de limite 5 Mo)
-      let _db = null;
-      const DB_NAME    = 'SpeechifyDB';
-      const DB_VERSION = 1;
-      const STORE_NAME = 'docs';
-
       function openDB() {
         return new Promise((resolve, reject) => {
           if (_db) { resolve(_db); return; }
@@ -1558,7 +1516,6 @@
           req.onerror    = (e) => reject(e.target.error);
         });
       }
-
       async function dbGetAll() {
         const db = await openDB();
         return new Promise((resolve, reject) => {
@@ -1568,7 +1525,6 @@
           req.onerror   = () => reject(req.error);
         });
       }
-
       async function dbPut(doc) {
         const db = await openDB();
         return new Promise((resolve, reject) => {
@@ -1578,7 +1534,6 @@
           req.onerror   = () => reject(req.error);
         });
       }
-
       async function dbDelete(id) {
         const db = await openDB();
         return new Promise((resolve, reject) => {
@@ -1588,7 +1543,6 @@
           req.onerror   = () => reject(req.error);
         });
       }
-
       async function dbClear() {
         const db = await openDB();
         return new Promise((resolve, reject) => {
@@ -1598,8 +1552,6 @@
           req.onerror   = () => reject(req.error);
         });
       }
-
-      // Initialisation : charger docs depuis IndexedDB, prefs depuis localStorage
       async function initStorage() {
         loadPrefs();
         // Appliquer le thème sauvegardé immédiatement
@@ -1628,24 +1580,14 @@
         const curDoc = docs.find(d => d.id === appState.currentDocId);
         if (curDoc) appState.wordsArray = curDoc.content.split(/(\s+)/);
       }
-
-      // Sauvegarder un doc (création ou mise à jour)
       async function saveDoc(doc) {
         await dbPut(doc);
         savePrefs();
       }
-
-      // Supprimer un doc
       async function deleteDoc(id) {
         await dbDelete(id);
         savePrefs();
       }
-
-      // --- SYNTHÈSE VOCALE ---
-      let synthVoices = [];
-      let _voiceRetryCount = 0;
-      const _VOICE_RETRY_MAX = 15; // jusqu'à 15 tentatives × 500ms = 7.5s
-
       function _voiceQuality(v) {
         const n = v.name.toLowerCase();
         if (n.includes('google') || n.includes('neural') || n.includes('enhanced') || n.includes('premium')) return 3;
@@ -1659,7 +1601,6 @@
         if (v.localService)         return '✓ Locale';
         return '— Réseau';
       }
-
       function loadSystemVoices(forceRefresh = false) {
         if (!('speechSynthesis' in window)) return;
         const voices = window.speechSynthesis.getVoices();
@@ -1741,8 +1682,6 @@
           toast(`✅ ${googleCount} voix HD trouvée${googleCount > 1 ? 's' : ''} !`);
         }
       }
-
-      // Bouton "Actualiser les voix" dans les réglages
       function _addVoiceRefreshBtn() {
         const voiceRow = $('#voice-quality-badge').closest('div');
         if (!voiceRow || $('#voice-refresh-btn')) return;
@@ -1759,33 +1698,6 @@
         });
         voiceRow.appendChild(btn);
       }
-
-      if ('speechSynthesis' in window) {
-        // onvoiceschanged peut se déclencher plusieurs fois sur Android
-        window.speechSynthesis.onvoiceschanged = () => loadSystemVoices();
-        // Premier chargement avec retry automatique
-        loadSystemVoices();
-        // Second essai après 1s (Android Chrome est souvent lent)
-        setTimeout(() => loadSystemVoices(), 1000);
-        // Ajouter le bouton actualiser une fois le DOM prêt
-        setTimeout(_addVoiceRefreshBtn, 500);
-      }
-
-      // ─── MOTEUR VOCAL v3 — SYNC PAR TIMER (Android-safe) ────────────────────
-      // onboundary est non fiable sur Android Chrome.
-      // On calcule le délai théorique de chaque mot selon sa longueur + vitesse,
-      // et on avance le highlight mot par mot via setTimeout.
-
-      let _synthKeepAlive = null;
-      let _chunks        = [];   // { text, words: [{wordIdx, charLen}] }
-      let _chunkIndex    = 0;
-      let _wordTimers    = [];   // timeouts en cours pour le chunk actif
-
-      // Vitesse de sync highlight : ajustable via le curseur (valeur par défaut = 9 chars/sec)
-      // Plus la valeur est basse → highlight plus lent → correspond mieux aux voix lentes
-      let CHARS_PER_SEC = 9;
-      const CHUNK_MAX     = 2500;
-
       function _startKeepAlive() {
         _stopKeepAlive();
         _synthKeepAlive = setInterval(() => {
@@ -1800,13 +1712,6 @@
         _wordTimers.forEach(t => clearTimeout(t));
         _wordTimers = [];
       }
-
-      /**
-       * Construit _chunks[] selon readMode :
-       *  'sentence'  → découpe aux fins de phrase (. ! ? \n) — plus fluide sur Android
-       *  'paragraph' → découpe aux sauts de ligne doubles — chunks plus longs
-       * Chaque chunk : { text, words: [{wordIdx, charLen, charStart}], endsWithParagraph }
-       */
       function _buildChunks() {
         _chunks = [];
         const wa    = appState.wordsArray;
@@ -1857,12 +1762,6 @@
         }
         pushChunk(); // dernier chunk restant
       }
-
-      /**
-       * Programme les highlights pour un chunk via setTimeout.
-       * Délai de chaque mot = somme des durées des mots précédents.
-       * Durée d'un mot ≈ charLen / (CHARS_PER_SEC * rate) secondes.
-       */
       function _scheduleHighlights(chunk) {
         _clearWordTimers();
         const rate    = appState.speed || 1;
@@ -1889,7 +1788,6 @@
           elapsed += (nextCharStart - w.charStart) * mspChar;
         }
       }
-
       function stopSpeechEngine() {
         _stopKeepAlive();
         _clearWordTimers();
@@ -1911,7 +1809,6 @@
         $('#waveform').classList.remove('playing');
         updateControlsUI();
       }
-
       function _speakChunk(chunkIdx) {
         if (!appState.playing || chunkIdx >= _chunks.length) {
           // Fin de la lecture complète
@@ -1963,7 +1860,6 @@
 
         window.speechSynthesis.speak(utt);
       }
-
       function startSpeechEngine() {
         const doc = appState.docs.find(d => d.id === appState.currentDocId);
         if (!doc || !doc.content || !doc.content.trim()) return toast("Aucun contenu textuel exploitable.");
@@ -1994,8 +1890,6 @@
           _speakChunk(0);
         }, 150);
       }
-
-      let _savePositionTimer = null;
       function autoHighlightAndCenter(index) {
         const box   = $('#reader-text');
         const spans = $$('#reader-text span[id^="word-"]');
@@ -2049,7 +1943,6 @@
         const targetScroll  = box.scrollTop + nodeTopInBox - (box.clientHeight / 2) + (nodeRect.height / 2);
         box.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
       }
-
       function renderTextInReader(wrap = false) {
         const doc = appState.docs.find(d => d.id === appState.currentDocId);
         const box = $('#reader-text');
@@ -2103,22 +1996,6 @@
           });
         }
       }
-
-      // ✅ FIX PRINCIPAL : Chargement de fichier PDF/TXT corrigé
-      // Zone de drag & drop globale
-      const mainDropZone = $('#main-drop-zone');
-      mainDropZone.addEventListener('dragover', (e) => { e.preventDefault(); mainDropZone.classList.add('dragover'); });
-      mainDropZone.addEventListener('dragleave', () => mainDropZone.classList.remove('dragover'));
-      mainDropZone.addEventListener('drop', (e) => {
-        e.preventDefault(); mainDropZone.classList.remove('dragover');
-        if (e.dataTransfer.files.length) uploadFileHandler(e.dataTransfer.files[0]);
-      });
-
-      // ✅ Labels HTML au lieu de buttons — les inputs sont maintenant correctement cliquables
-      $('#file-loader-txt').addEventListener('change', (e) => { if (e.target.files.length) uploadFileHandler(e.target.files[0]); });
-      $('#file-loader-pdf').addEventListener('change', (e) => { if (e.target.files.length) uploadFileHandler(e.target.files[0]); });
-
-      // ✅ FIX PDF.js : workerSrc configuré + progress page par page + meilleur feedback
       async function uploadFileHandler(file) {
         if (!file) return;
         const ext = file.name.split('.').pop().toLowerCase();
@@ -2186,13 +2063,11 @@
           stopLoader();
         }
       }
-
       function stopLoader() {
         $('#reader-text').style.display = 'block';
         $('#article-skeleton').style.display = 'none';
         $('#pdf-progress-block').classList.remove('active');
       }
-
       function _cleanTitle(raw) {
         // Supprimer les URLs, underscores multiples, extensions, caractères parasites
         return raw
@@ -2204,7 +2079,6 @@
           .trim()
           || raw.replace(/\.[a-z]{2,4}$/i, '').trim(); // fallback
       }
-
       async function insertDocToLibrary(title, content, type, source) {
         stopLoader();
         if (!content || !content.trim()) content = "Le document extrait ne contient aucun texte exploitable.";
@@ -2232,8 +2106,6 @@
         renderAll();
         toast("✅ « " + cleanedTitle + " » ajouté !");
       }
-
-      // --- RENDU GLOBAL ---
       function navigate(route) {
         appState.route = route;
         $$('.page').forEach(p => p.classList.remove('active'));
@@ -2248,7 +2120,6 @@
         if (route === 'stats') renderStats();
         if (route === 'library-store') renderLibrary();
       }
-
       function updateControlsUI() {
         const icon  = appState.playing ? 'pause' : 'play';
         const label = appState.playing ? 'Pause' : 'Lecture';
@@ -2262,10 +2133,6 @@
         _zenUpdatePlayBtn && _zenUpdatePlayBtn();
         if (window.lucide) lucide.createIcons();
       }
-
-      // ─── CARROUSEL HOME ──────────────────────────────────────────────────────
-      let _carouselIndex = 0;
-
       function renderCarousel() {
         const track = $('#carousel-track');
         const dots  = $('#carousel-dots');
@@ -2368,7 +2235,6 @@
 
         if (window.lucide) lucide.createIcons();
       }
-
       function _selectCarouselDoc(d, i) {
         if (appState.currentDocId !== d.id) {
           stopSpeechEngine();
@@ -2388,35 +2254,6 @@
         _carouselIndex = i;
         renderAll();
       }
-
-      // Flèches carrousel
-      $('#carousel-prev').addEventListener('click', () => {
-        const track = $('#carousel-track');
-        _carouselIndex = Math.max(0, _carouselIndex - 1);
-        track.children[_carouselIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
-        $$('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === _carouselIndex));
-      });
-      $('#carousel-next').addEventListener('click', () => {
-        const track = $('#carousel-track');
-        _carouselIndex = Math.min(appState.docs.length - 1, _carouselIndex + 1);
-        track.children[_carouselIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
-        $$('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === _carouselIndex));
-      });
-
-      // Sync index carrousel au scroll (swipe)
-      $('#carousel-track').addEventListener('scrollend', () => {
-        const track  = $('#carousel-track');
-        const cards  = [...track.children];
-        const center = track.scrollLeft + track.clientWidth / 2;
-        let closest  = 0, minDist = Infinity;
-        cards.forEach((c, i) => {
-          const dist = Math.abs(c.offsetLeft + c.clientWidth / 2 - center);
-          if (dist < minDist) { minDist = dist; closest = i; }
-        });
-        _carouselIndex = closest;
-        $$('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === closest));
-      });
-
       function renderAll() {
         const doc = appState.docs.find(d => d.id === appState.currentDocId);
         if (doc) {
@@ -2527,20 +2364,6 @@
         $('#speed-value').textContent = `${appState.speed.toFixed(1)}x`;
         if (window.lucide) lucide.createIcons();
       }
-
-      // Double tap pour navigation
-      let lastTap = 0;
-      $('#reader-text').addEventListener('touchend', (e) => {
-        const now = Date.now(); const delta = now - lastTap;
-        if (delta < 300 && delta > 0) {
-          e.preventDefault();
-          const rect = $('#reader-text').getBoundingClientRect();
-          const clickX = e.changedTouches[0].clientX - rect.left;
-          skipTimelineWords(clickX < rect.width / 2 ? -30 : 30);
-        }
-        lastTap = now;
-      });
-
       function skipTimelineWords(count) {
         if (!appState.currentDocId || !appState.wordsArray.length) return;
         stopSpeechEngine();
@@ -2551,15 +2374,12 @@
         toast(count > 0 ? "⏩ +15s" : "⏪ -15s");
         startSpeechEngine();
       }
-
-      // ─── #5 MARQUE-PAGES ─────────────────────────────────────────────────────
       function _getBookmarks(docId) {
         try { return JSON.parse(localStorage.getItem(`bk_${docId}`) || '[]'); } catch(e) { return []; }
       }
       function _saveBookmarks(docId, bks) {
         localStorage.setItem(`bk_${docId}`, JSON.stringify(bks));
       }
-
       function renderBookmarks() {
         const list = $('#bookmark-list');
         if (!list) return;
@@ -2593,161 +2413,6 @@
         });
         if (window.lucide) lucide.createIcons();
       }
-
-      $('#bookmark-add-btn').addEventListener('click', () => {
-        const docId = appState.currentDocId;
-        if (!docId || !appState.wordsArray.length) return toast("Aucun document actif.");
-        const idx     = appState.currentWordIndex;
-        const pct     = Math.round((idx / appState.wordsArray.length) * 100);
-        // Extraire un aperçu du texte à cette position
-        const preview = appState.wordsArray.slice(idx, idx + 12).join('').trim().substring(0, 60) + '…';
-        const bks     = _getBookmarks(docId);
-        // Éviter les doublons proches (±2%)
-        if (bks.some(b => Math.abs(b.pct - pct) < 2)) return toast("Un marque-page existe déjà ici.");
-        bks.push({ wordIndex: idx, pct, preview, date: new Date().toISOString() });
-        bks.sort((a, b) => a.wordIndex - b.wordIndex);
-        _saveBookmarks(docId, bks);
-        // Feedback visuel sur le bouton
-        const btn = $('#bookmark-add-btn');
-        btn.classList.add('active');
-        btn.innerHTML = '<i data-lucide="bookmark-check"></i><span>Ajouté !</span>';
-        if (window.lucide) lucide.createIcons();
-        setTimeout(() => {
-          btn.classList.remove('active');
-          btn.innerHTML = '<i data-lucide="bookmark-plus"></i><span>Marquer</span>';
-          if (window.lucide) lucide.createIcons();
-        }, 2000);
-        // Afficher le panneau
-        const panel = $('#bookmarks-panel');
-        if (panel) panel.style.display = 'block';
-        renderBookmarks();
-        toast(`🔖 Marque-page ajouté à ${pct}%`);
-      });
-
-      $('#bookmarks-close').addEventListener('click', () => {
-        const panel = $('#bookmarks-panel');
-        if (panel) panel.style.display = 'none';
-      });
-
-      // ─── #7 PARTAGE ──────────────────────────────────────────────────────────
-      // Bouton aide (top-bar)
-      $('#help-btn').addEventListener('click', () => navigate('help'));
-
-      $('#share-btn').addEventListener('click', async () => {
-        const doc  = appState.docs.find(d => d.id === appState.currentDocId);
-        const url  = 'https://laurent-67370.github.io/speechify-pwa/';
-        const text = doc ? `J'écoute "${doc.title}" sur SpeechifyPro` : 'SpeechifyPro — Lecteur audio de documents';
-        try {
-          if (navigator.share) {
-            await navigator.share({ title: 'SpeechifyPro', text, url });
-          } else {
-            await navigator.clipboard.writeText(url);
-            toast("🔗 Lien copié dans le presse-papiers !");
-          }
-        } catch(e) {
-          if (e.name !== 'AbortError') {
-            await navigator.clipboard.writeText(url).catch(() => {});
-            toast("🔗 Lien copié !");
-          }
-        }
-      });
-
-      // Export TXT
-      $('#export-audio-btn').addEventListener('click', () => {
-        const doc = appState.docs.find(d => d.id === appState.currentDocId);
-        if (!doc) return toast("Aucun fichier actif.");
-        const payload = `=== EXPORT SPEECHIFY PRO ===\nTitre : ${doc.title}\nDurée estimée : ${doc.minutes} min\n\nContenu :\n${doc.content}`;
-        const blob = new Blob([payload], { type: 'text/plain;charset=utf-8' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `${doc.title.replace(/[^a-z0-9]+/gi, '-')}-export.txt`;
-        link.click();
-        toast("Export téléchargé !");
-      });
-
-      // Thème
-      $('#theme-toggle-btn').addEventListener('click', () => {
-        appState.theme = appState.theme === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', appState.theme);
-        // SVG inline : soleil = dark mode actif, lune = light mode actif
-        const themeIcon = $('#theme-icon');
-        if (themeIcon) {
-          themeIcon.innerHTML = appState.theme === 'dark'
-            ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>'
-            : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
-        }
-        savePrefs();
-        if (window.lucide) lucide.createIcons();
-      });
-
-      // Navigation
-      $$('[data-route-nav]').forEach(btn => btn.addEventListener('click', () => navigate(btn.dataset.routeNav)));
-      $$('[data-route-go]').forEach(btn => btn.addEventListener('click', () => navigate(btn.dataset.routeGo)));
-      $$('[data-close-modal]').forEach(btn => btn.addEventListener('click', () => { const m = $('.modal.active'); if (m) m.classList.remove('active'); }));
-
-      $('#resume-listening').addEventListener('click', () => navigate('reader'));
-      const playbackTrigger = () => {
-        if (appState.playing) {
-          stopSpeechEngine();
-        } else {
-          // Désactiver temporairement pour éviter double-clic pendant le délai 120ms
-          $('#play-toggle').disabled = true;
-          $('#reader-play').disabled = true;
-          $('#reader-status').textContent = 'Démarrage…';
-          startSpeechEngine();
-        }
-      };
-      $('#play-toggle').addEventListener('click', playbackTrigger);
-      $('#reader-play').addEventListener('click', playbackTrigger);
-
-      $('#speed-range').addEventListener('input', (e) => {
-        appState.speed = parseFloat(e.target.value);
-        $('#speed-value').textContent = `${appState.speed.toFixed(1)}x`;
-        // Sauvegarder aussi dans le doc courant
-        const doc = appState.docs.find(d => d.id === appState.currentDocId);
-        if (doc) { doc.speed = appState.speed; saveDoc(doc); }
-        savePrefs();
-        if (appState.playing) startSpeechEngine();
-      });
-
-      $('#voice-select').addEventListener('change', (e) => {
-        appState.selectedVoiceName = e.target.value;
-        // Mettre à jour le badge qualité
-        const cur = synthVoices.find(v => v.name === appState.selectedVoiceName);
-        const badge = $('#voice-quality-badge');
-        if (badge && cur) badge.textContent = _voiceQualityLabel(cur);
-        savePrefs();
-        if (appState.playing) startSpeechEngine();
-      });
-
-      // Tonalité (pitch)
-      $('#pitch-range').addEventListener('input', (e) => {
-        appState.pitch = parseFloat(e.target.value);
-        $('#pitch-value').textContent = appState.pitch.toFixed(1);
-        savePrefs();
-        if (appState.playing) startSpeechEngine();
-      });
-
-      // Pause entre paragraphes
-      $('#pause-range').addEventListener('input', (e) => {
-        appState.pauseMs = parseInt(e.target.value);
-        $('#pause-value').textContent = (appState.pauseMs / 1000).toFixed(1) + 's';
-        savePrefs();
-      });
-
-      // Mode de lecture
-      $$('.read-mode-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          $$('.read-mode-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          appState.readMode = btn.dataset.mode;
-          savePrefs();
-          if (appState.playing) startSpeechEngine();
-          toast(`Mode : ${appState.readMode === 'sentence' ? 'Par phrase' : 'Par paragraphe'}`);
-        });
-      });
-
-      // Curseur de synchronisation highlight ↔ audio
       function _syncLabel(v) {
         if (v <= 6)  return 'Très lent';
         if (v <= 9)  return 'Lent';
@@ -2755,41 +2420,6 @@
         if (v <= 16) return 'Rapide';
         return 'Très rapide';
       }
-      $('#sync-range').addEventListener('input', (e) => {
-        CHARS_PER_SEC = parseInt(e.target.value);
-        appState.syncSpeed = CHARS_PER_SEC;
-        $('#sync-value').textContent = _syncLabel(CHARS_PER_SEC);
-        savePrefs();
-        // Si en lecture : relancer immédiatement les timers avec la nouvelle valeur
-        if (appState.playing) {
-          _clearWordTimers();
-          // Relancer le highlight du chunk courant depuis le mot actuel
-          const chunk = _chunks[_chunkIndex];
-          if (chunk) {
-            // Trouver l'index du mot courant dans le chunk
-            const currentWi = appState.currentWordIndex;
-            const subWords = chunk.words.filter(w => w.wordIdx >= currentWi);
-            if (subWords.length) {
-              // Recalculer les timers à partir de maintenant
-              const rate    = appState.speed || 1;
-              const mspChar = 1000 / (CHARS_PER_SEC * rate);
-              // Offset char du mot courant dans le chunk
-              const baseCharStart = subWords[0].charStart;
-              subWords.forEach(w => {
-                const delay = (w.charStart - baseCharStart) * mspChar;
-                const t = setTimeout(() => {
-                  if (!appState.playing) return;
-                  appState.currentWordIndex = w.wordIdx;
-                  autoHighlightAndCenter(w.wordIdx);
-                }, delay);
-                _wordTimers.push(t);
-              });
-            }
-          }
-        }
-      });
-
-      // Initialiser l'état visuel du bouton surlignage (ON par défaut)
       function updateHighlightBtn() {
         const btn = $('#highlight-toggle');
         if (appState.highlight) {
@@ -2801,21 +2431,6 @@
         }
         if (window.lucide) lucide.createIcons();
       }
-
-      $('#highlight-toggle').addEventListener('click', () => {
-        appState.highlight = !appState.highlight;
-        updateHighlightBtn();
-        if (appState.playing) {
-          autoHighlightAndCenter(appState.currentWordIndex);
-        } else {
-          $$('#reader-text span[id^="word-"]').forEach(s => {
-            s.classList.remove('word-highlight', 'word-read');
-          });
-        }
-      });
-      updateHighlightBtn();
-
-      // ─── MODE ZEN — téléprompter fond noir ───────────────────────────────────
       function _zenRenderText() {
         const doc = appState.docs.find(d => d.id === appState.currentDocId);
         const box = $('#zen-text');
@@ -2836,7 +2451,6 @@
           });
         });
       }
-
       function _zenHighlight(index) {
         const box = $('#zen-text');
         if (!box) return;
@@ -2866,7 +2480,6 @@
           if (fill) fill.style.width = pct + '%';
         }
       }
-
       function _zenUpdatePlayBtn() {
         const btn = $('#zen-play');
         if (!btn) return;
@@ -2875,7 +2488,6 @@
           : '<i data-lucide="play"></i><span>Lecture</span>';
         if (window.lucide) lucide.createIcons();
       }
-
       function openZenMode() {
         const doc = appState.docs.find(d => d.id === appState.currentDocId);
         if (!doc) { toast("Aucun document sélectionné."); return; }
@@ -2895,7 +2507,6 @@
         // Empêcher le scroll de la page derrière
         document.body.style.overflow = 'hidden';
       }
-
       function closeZenMode() {
         appState.isFocusMode = false;
         $('#zen-overlay').classList.remove('active');
@@ -2905,71 +2516,6 @@
         btn.innerHTML = '<i data-lucide="eye-off"></i><span>Mode Zen</span>';
         if (window.lucide) lucide.createIcons();
       }
-
-      // Bouton toolbar → ouvre/ferme le zen
-      $('#focus-toggle').addEventListener('click', () => {
-        appState.isFocusMode ? closeZenMode() : openZenMode();
-      });
-
-      // Bouton ✕ dans l'overlay
-      $('#zen-close').addEventListener('click', closeZenMode);
-
-      // Bouton play zen
-      $('#zen-play').addEventListener('click', () => {
-        if (appState.playing) stopSpeechEngine();
-        else {
-          $('#zen-play').disabled = true;
-          startSpeechEngine();
-        }
-        _zenUpdatePlayBtn();
-      });
-
-      // Skip zen
-      $('#zen-back').addEventListener('click',    () => skipTimelineWords(-30));
-      $('#zen-forward').addEventListener('click', () => skipTimelineWords(30));
-
-      // Fermer avec touche Escape
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && appState.isFocusMode) closeZenMode();
-      });
-
-      // Toggle panneau réglages
-      let _settingsOpen = true;
-      $('#settings-toggle-btn').addEventListener('click', () => {
-        _settingsOpen = !_settingsOpen;
-        const panel = $('#reader-settings-panel');
-        const btn   = $('#settings-toggle-btn');
-        panel.style.display = _settingsOpen ? '' : 'none';
-        if (_settingsOpen) {
-          btn.classList.add('active');
-          btn.innerHTML = '<i data-lucide="settings-2"></i><span>Réglages ▲</span>';
-        } else {
-          btn.classList.remove('active');
-          btn.innerHTML = '<i data-lucide="settings-2"></i><span>Réglages</span>';
-        }
-        if (window.lucide) lucide.createIcons();
-      });
-
-      $('#summary-generate') && $('#summary-generate').addEventListener('click', () => navigate('summary'));
-      $('#library-search').addEventListener('input', (e) => { appState.search = e.target.value; renderAll(); });
-      $('#sort-library').addEventListener('click', () => { appState.sortAsc = !appState.sortAsc; renderAll(); });
-
-      $$('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
-        $$('.tab-btn').forEach(x => x.classList.remove('active'));
-        btn.classList.add('active');
-        appState.currentFilter = btn.dataset.filter;
-        renderAll();
-      }));
-
-      $('#rewind-btn').addEventListener('click', () => skipTimelineWords(-30));
-      $('#forward-btn').addEventListener('click', () => skipTimelineWords(30));
-      $('#reader-back-15').addEventListener('click', () => skipTimelineWords(-30));
-      $('#reader-next-15').addEventListener('click', () => skipTimelineWords(30));
-
-      // ─── POPUP SÉLECTION DE TEXTE ────────────────────────────────────────────
-      const selectionPopup = $('#selection-popup');
-      let _selectionTimer = null;
-
       function showSelectionPopup(x, y) {
         selectionPopup.style.left = `${Math.min(x, window.innerWidth - 180)}px`;
         selectionPopup.style.top  = `${Math.max(y - 52, 8)}px`;
@@ -2978,7 +2524,6 @@
       function hideSelectionPopup() {
         selectionPopup.classList.remove('visible');
       }
-
       function handleTextSelection() {
         const sel = window.getSelection();
         if (!sel || sel.isCollapsed || !sel.toString().trim()) { hideSelectionPopup(); return; }
@@ -2992,85 +2537,6 @@
         const rect = range.getBoundingClientRect();
         showSelectionPopup(rect.left + rect.width / 2 - 70, rect.top + window.scrollY);
       }
-
-      // Sur desktop : mouseup
-      document.addEventListener('mouseup', () => {
-        clearTimeout(_selectionTimer);
-        _selectionTimer = setTimeout(handleTextSelection, 60);
-      });
-
-      // Sur mobile : touchend
-      document.addEventListener('touchend', (e) => {
-        // Ignorer si c'est le double-tap navigation
-        clearTimeout(_selectionTimer);
-        _selectionTimer = setTimeout(handleTextSelection, 200);
-      });
-
-      // Clic sur le popup → trouver le mot sélectionné et lancer la lecture
-      selectionPopup.addEventListener('mousedown', (e) => e.preventDefault()); // empêche la sélection de disparaître
-      selectionPopup.addEventListener('click', () => {
-        const sel = window.getSelection();
-        if (!sel || sel.isCollapsed) { hideSelectionPopup(); return; }
-
-        const doc = appState.docs.find(d => d.id === appState.currentDocId);
-        if (!doc) { hideSelectionPopup(); return; }
-
-        const selectedText = sel.toString().trim();
-        if (!selectedText) { hideSelectionPopup(); return; }
-
-        // Trouver la position du texte sélectionné dans le contenu
-        if (!appState.wordsArray.length) appState.wordsArray = doc.content.split(/(\s+)/);
-        const fullText = appState.wordsArray.join('');
-        const selectedIdx = fullText.toLowerCase().indexOf(selectedText.toLowerCase());
-
-        if (selectedIdx !== -1) {
-          // Retrouver l'index de mot dans wordsArray correspondant à cette position char
-          let pos = 0;
-          for (let i = 0; i < appState.wordsArray.length; i++) {
-            if (pos >= selectedIdx && appState.wordsArray[i].trim() !== '') {
-              appState.currentWordIndex = i;
-              break;
-            }
-            pos += appState.wordsArray[i].length;
-          }
-        }
-
-        sel.removeAllRanges();
-        hideSelectionPopup();
-
-        // Lancer la lecture depuis la position trouvée
-        stopSpeechEngine();
-        navigate('reader');
-        setTimeout(() => {
-          $('#play-toggle').disabled = true;
-          $('#reader-play').disabled = true;
-          startSpeechEngine();
-        }, 100);
-      });
-
-      // Fermer le popup si clic ailleurs
-      document.addEventListener('mousedown', (e) => {
-        if (e.target !== selectionPopup && !selectionPopup.contains(e.target)) hideSelectionPopup();
-      });
-
-      $('#save-import').addEventListener('click', () => {
-        const title = $('#import-title').value.trim() || "Texte Manuel";
-        const content = $('#import-content').value;
-        const type = $('#import-type').value;
-        if (!content.trim()) return toast("⚠️ Veuillez saisir du texte.");
-        insertDocToLibrary(title, content, type, 'Manuel');
-        $('#import-title').value = '';
-        $('#import-content').value = '';
-      });
-
-      $('#load-demo-kindle').addEventListener('click', () => {
-        insertDocToLibrary(
-          "Guide d'accessibilité.txt",
-          "L'accessibilité web permet à toute personne d'accéder aux contenus textuels et numériques sans barrière technique. La synthèse vocale assistée par un surlignage dynamique au mot près améliore la rétention d'informations pour les profils dyslexiques ou les professionnels en déplacement. Les fonctionnalités de contrôle de la vitesse et le choix de la voix permettent une expérience personnalisée et efficace.",
-          "txt", "Démo"
-        );
-      });
-
       function toast(msg) {
         const wrap = $('#toast-wrap');
         const el = document.createElement('div');
@@ -3079,14 +2545,9 @@
         setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateY(10px)'; }, 2200);
         setTimeout(() => el.remove(), 2700);
       }
-
-      // ─── #1 COMPTEUR QUOTIDIEN ───────────────────────────────────────────────
-      let _dailyTimer = null;
-
       function _todayStr() {
         return new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
       }
-
       function _checkDailyReset() {
         const today = _todayStr();
         if (appState.dailyDate !== today) {
@@ -3095,7 +2556,6 @@
           savePrefs();
         }
       }
-
       function renderDailyGoal() {
         _checkDailyReset();
         const done  = appState.dailyDoneMin || 0;
@@ -3113,8 +2573,6 @@
         const todayEl = $('#stat-today');
         if (todayEl) todayEl.textContent = done.toFixed(1) + ' m';
       }
-
-      // Incrémenter le compteur pendant la lecture (toutes les 10s)
       function _startDailyTimer() {
         _stopDailyTimer();
         _dailyTimer = setInterval(() => {
@@ -3128,50 +2586,6 @@
       function _stopDailyTimer() {
         if (_dailyTimer) { clearInterval(_dailyTimer); _dailyTimer = null; }
       }
-
-      // Modifier l'objectif au tap
-      $('#daily-target').addEventListener('click', () => {
-        const val = prompt(`Objectif quotidien (minutes) :`, appState.dailyGoalMin);
-        const n   = parseInt(val);
-        if (n > 0 && n <= 480) {
-          appState.dailyGoalMin = n;
-          savePrefs();
-          renderDailyGoal();
-        }
-      });
-
-      // ─── #2 IMPORT URL ───────────────────────────────────────────────────────
-      // Chaque proxy a sa propre stratégie de parsing
-      const CORS_PROXIES = [
-        {
-          name: 'lhusser.fr (proxy perso)',
-          url:  (u) => `https://www.lhusser.fr/proxy.php?url=${encodeURIComponent(u)}`,
-          extract: async (resp) => {
-            const data = await resp.json();
-            if (data.error) throw new Error(data.error);
-            return data.contents || null;
-          }
-        },
-        {
-          name: 'allorigins',
-          url:  (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
-          extract: async (resp) => {
-            const data = await resp.json();
-            return data.contents || null;
-          }
-        },
-        {
-          name: 'corsproxy.io',
-          url:  (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-          extract: async (resp) => resp.text()
-        },
-        {
-          name: 'codetabs',
-          url:  (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-          extract: async (resp) => resp.text()
-        },
-      ];
-
       async function _fetchViaProxy(targetUrl, statusEl) {
         for (let i = 0; i < CORS_PROXIES.length; i++) {
           const proxy = CORS_PROXIES[i];
@@ -3197,7 +2611,6 @@
         }
         throw new Error('Tous les proxies ont échoué. Site protégé ou inaccessible.');
       }
-
       function _extractTextFromHtml(html, targetUrl) {
         const parser = new DOMParser();
         const doc2   = parser.parseFromString(html, 'text/html');
@@ -3238,7 +2651,6 @@
 
         return { text, title };
       }
-
       async function importFromUrl(url) {
         const statusEl = $('#url-import-status');
         const btn      = $('#url-import-btn');
@@ -3274,25 +2686,6 @@
           btn.disabled = false;
         }
       }
-
-      $('#url-import-btn').addEventListener('click', () => {
-        importFromUrl($('#url-import-input').value.trim());
-      });
-      $('#url-import-input').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') importFromUrl(e.target.value.trim());
-      });
-
-      // ─── #3 OCR IMAGE (Tesseract.js) ─────────────────────────────────────────
-      $('#file-loader-ocr').addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        if (!file.type.startsWith('image/')) {
-          toast("⚠️ Fichier non supporté — choisissez une image.");
-          return;
-        }
-        processOcrImage(file);
-      });
-
       async function processOcrImage(file) {
         const preview   = $('#ocr-preview-wrap');
         const img       = $('#ocr-preview-img');
@@ -3347,16 +2740,6 @@
           toast("❌ OCR échoué : " + err.message);
         }
       }
-
-      // ─── #8 ONBOARDING ───────────────────────────────────────────────────────
-      const ONBOARDING_STEPS = [
-        { icon: 'headphones',  title: 'Bienvenue sur SpeechifyPro', desc: 'Transformez vos PDF, articles et textes en audio avec surlignage synchronisé.' },
-        { icon: 'upload',      title: 'Importez vos documents',      desc: 'PDF, TXT, image OCR ou URL d\'article web — tout devient lisible et écoutable.' },
-        { icon: 'highlighter', title: 'Surlignage en temps réel',    desc: 'Chaque mot lu est surligné. Activez "Surlignage ON" et suivez la lecture visuellement.' },
-        { icon: 'eye-off',     title: 'Mode Zen immersif',           desc: 'Fond noir total, texte centré, téléprompter. Tap sur "Mode Zen" depuis la page Lecture.' },
-      ];
-      let _obStep = 0;
-
       function _renderOnboardingStep(step) {
         const s = ONBOARDING_STEPS[step];
         $('#ob-icon').innerHTML   = `<i data-lucide="${s.icon}"></i>`;
@@ -3366,12 +2749,10 @@
         $('#ob-next').textContent  = step === ONBOARDING_STEPS.length - 1 ? 'Commencer 🚀' : 'Suivant →';
         if (window.lucide) lucide.createIcons();
       }
-
       function _closeOnboarding() {
         $('#onboarding-overlay').classList.remove('active');
         localStorage.setItem('speechify_onboarded', '1');
       }
-
       function _showOnboardingIfNeeded() {
         if (!localStorage.getItem('speechify_onboarded')) {
           _obStep = 0;
@@ -3379,15 +2760,6 @@
           $('#onboarding-overlay').classList.add('active');
         }
       }
-
-      $('#ob-next').addEventListener('click', () => {
-        _obStep++;
-        if (_obStep >= ONBOARDING_STEPS.length) { _closeOnboarding(); return; }
-        _renderOnboardingStep(_obStep);
-      });
-      $('#ob-skip').addEventListener('click', _closeOnboarding);
-
-      // ─── #10 STATISTIQUES DÉTAILLÉES ─────────────────────────────────────────
       function _getWeekData() {
         const data = [];
         for (let i = 6; i >= 0; i--) {
@@ -3399,7 +2771,6 @@
         }
         return data;
       }
-
       function renderStats() {
         const done = appState.dailyDoneMin || 0;
         const goal = appState.dailyGoalMin || 30;
@@ -3486,21 +2857,16 @@
             : '<p style="font-size:11px;color:var(--color-text-faint);text-align:center;padding:var(--space-4);">Aucun document.</p>';
         }
       }
-
-      // Sauvegarder les minutes du jour dans localStorage (clé par date)
       function _saveDailyToHistory() {
         const key = `speechify_day_${_todayStr()}`;
         localStorage.setItem(key, (appState.dailyDoneMin || 0).toFixed(2));
       }
-
-      // ─── #11 NOTIFICATION FIN DE LECTURE ─────────────────────────────────────
       async function _requestNotifPermission() {
         if (!('Notification' in window)) return;
         if (Notification.permission === 'default') {
           await Notification.requestPermission();
         }
       }
-
       function _notifyReadingDone(docTitle) {
         if (!('Notification' in window) || Notification.permission !== 'granted') return;
         // Sur Android PWA installée, la notification s'affiche en système
@@ -3523,12 +2889,6 @@
           }
         } catch(e) { console.warn('Notification échouée:', e); }
       }
-
-
-      let _libCurrentCat = 'all';
-      let _libSearchQuery = '';
-
-      // Récupérer les URLs de téléchargement via l'API Gutendex (côté navigateur)
       async function _getGutenbergLinks(gutId) {
 
       function _libBookCard(book) {
@@ -3772,6 +3132,652 @@
         navigate('home');
       });
     });
-  </script>
+</script>
+<script>
+// ── Initialisation DOM
+
+    // ✅ FIX CRITIQUE : Configurer le worker PDF.js AVANT tout usage
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) lucide.createIcons();
+
+      // Waveform
+      const waveform = document.getElementById('waveform');
+      const heights = [20,45,30,60,75,35,50,70,40,80,55,45,65,30,50,65,40,75,50,55,65,35,45,60];
+      waveform.innerHTML = heights.map((h, i) => `<span style="--i:${i}; height:${h}%"></span>`).join('');
+
+      // Bibliothèque initiale de démonstration
+
+      const appState = {
+        route: 'home', playing: false, currentFilter: 'all', search: '', sortAsc: false,
+        highlight: true, speed: 1.4, selectedVoiceName: '', currentDocId: null,
+        isFocusMode: false, theme: 'dark', docs: [], wordsArray: [], currentWordIndex: 0,
+        syncSpeed: 9,
+        pitch: 1.0,
+        pauseMs: 400,
+        readMode: 'sentence',
+        dailyGoalMin: 30,
+        dailyDoneMin: 0,
+        dailyDate: '',
+      };
+
+      const $ = (sel) => document.querySelector(sel);
+      const $$ = (sel) => [...document.querySelectorAll(sel)];
+
+      // ─── PERSISTANCE COMPLÈTE — IndexedDB (docs) + localStorage (prefs) ────────
+
+      // Préférences légères → localStorage
+
+
+      // Contenu des docs → IndexedDB (pas de limite 5 Mo)
+      let _db = null;
+      const DB_NAME    = 'SpeechifyDB';
+      const DB_VERSION = 1;
+      const STORE_NAME = 'docs';
+
+
+
+
+
+
+      // Initialisation : charger docs depuis IndexedDB, prefs depuis localStorage
+
+      // Sauvegarder un doc (création ou mise à jour)
+
+      // Supprimer un doc
+
+      // --- SYNTHÈSE VOCALE ---
+      let synthVoices = [];
+      let _voiceRetryCount = 0;
+      const _VOICE_RETRY_MAX = 15; // jusqu'à 15 tentatives × 500ms = 7.5s
+
+
+
+      // Bouton "Actualiser les voix" dans les réglages
+
+      if ('speechSynthesis' in window) {
+        // onvoiceschanged peut se déclencher plusieurs fois sur Android
+        window.speechSynthesis.onvoiceschanged = () => loadSystemVoices();
+        // Premier chargement avec retry automatique
+        loadSystemVoices();
+        // Second essai après 1s (Android Chrome est souvent lent)
+        setTimeout(() => loadSystemVoices(), 1000);
+        // Ajouter le bouton actualiser une fois le DOM prêt
+        setTimeout(_addVoiceRefreshBtn, 500);
+      }
+
+      // ─── MOTEUR VOCAL v3 — SYNC PAR TIMER (Android-safe) ────────────────────
+      // onboundary est non fiable sur Android Chrome.
+      // On calcule le délai théorique de chaque mot selon sa longueur + vitesse,
+      // et on avance le highlight mot par mot via setTimeout.
+
+      let _synthKeepAlive = null;
+      let _chunks        = [];   // { text, words: [{wordIdx, charLen}] }
+      let _chunkIndex    = 0;
+      let _wordTimers    = [];   // timeouts en cours pour le chunk actif
+
+      // Vitesse de sync highlight : ajustable via le curseur (valeur par défaut = 9 chars/sec)
+      // Plus la valeur est basse → highlight plus lent → correspond mieux aux voix lentes
+      let CHARS_PER_SEC = 9;
+      const CHUNK_MAX     = 2500;
+
+
+      /**
+       * Construit _chunks[] selon readMode :
+       *  'sentence'  → découpe aux fins de phrase (. ! ? \n) — plus fluide sur Android
+       *  'paragraph' → découpe aux sauts de ligne doubles — chunks plus longs
+       * Chaque chunk : { text, words: [{wordIdx, charLen, charStart}], endsWithParagraph }
+       */
+
+      /**
+       * Programme les highlights pour un chunk via setTimeout.
+       * Délai de chaque mot = somme des durées des mots précédents.
+       * Durée d'un mot ≈ charLen / (CHARS_PER_SEC * rate) secondes.
+       */
+
+
+
+
+      let _savePositionTimer = null;
+
+
+      // ✅ FIX PRINCIPAL : Chargement de fichier PDF/TXT corrigé
+      // Zone de drag & drop globale
+      const mainDropZone = $('#main-drop-zone');
+      mainDropZone.addEventListener('dragover', (e) => { e.preventDefault(); mainDropZone.classList.add('dragover'); });
+      mainDropZone.addEventListener('dragleave', () => mainDropZone.classList.remove('dragover'));
+      mainDropZone.addEventListener('drop', (e) => {
+        e.preventDefault(); mainDropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) uploadFileHandler(e.dataTransfer.files[0]);
+      });
+
+      // ✅ Labels HTML au lieu de buttons — les inputs sont maintenant correctement cliquables
+      $('#file-loader-txt').addEventListener('change', (e) => { if (e.target.files.length) uploadFileHandler(e.target.files[0]); });
+      $('#file-loader-pdf').addEventListener('change', (e) => { if (e.target.files.length) uploadFileHandler(e.target.files[0]); });
+
+      // ✅ FIX PDF.js : workerSrc configuré + progress page par page + meilleur feedback
+
+
+
+
+      // --- RENDU GLOBAL ---
+
+
+      // ─── CARROUSEL HOME ──────────────────────────────────────────────────────
+      let _carouselIndex = 0;
+
+
+
+      // Flèches carrousel
+      $('#carousel-prev').addEventListener('click', () => {
+        const track = $('#carousel-track');
+        _carouselIndex = Math.max(0, _carouselIndex - 1);
+        track.children[_carouselIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
+        $$('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === _carouselIndex));
+      });
+      $('#carousel-next').addEventListener('click', () => {
+        const track = $('#carousel-track');
+        _carouselIndex = Math.min(appState.docs.length - 1, _carouselIndex + 1);
+        track.children[_carouselIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
+        $$('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === _carouselIndex));
+      });
+
+      // Sync index carrousel au scroll (swipe)
+      $('#carousel-track').addEventListener('scrollend', () => {
+        const track  = $('#carousel-track');
+        const cards  = [...track.children];
+        const center = track.scrollLeft + track.clientWidth / 2;
+        let closest  = 0, minDist = Infinity;
+        cards.forEach((c, i) => {
+          const dist = Math.abs(c.offsetLeft + c.clientWidth / 2 - center);
+          if (dist < minDist) { minDist = dist; closest = i; }
+        });
+        _carouselIndex = closest;
+        $$('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === closest));
+      });
+
+
+      // Double tap pour navigation
+      let lastTap = 0;
+      $('#reader-text').addEventListener('touchend', (e) => {
+        const now = Date.now(); const delta = now - lastTap;
+        if (delta < 300 && delta > 0) {
+          e.preventDefault();
+          const rect = $('#reader-text').getBoundingClientRect();
+          const clickX = e.changedTouches[0].clientX - rect.left;
+          skipTimelineWords(clickX < rect.width / 2 ? -30 : 30);
+        }
+        lastTap = now;
+      });
+
+
+      // ─── #5 MARQUE-PAGES ─────────────────────────────────────────────────────
+
+
+      $('#bookmark-add-btn').addEventListener('click', () => {
+        const docId = appState.currentDocId;
+        if (!docId || !appState.wordsArray.length) return toast("Aucun document actif.");
+        const idx     = appState.currentWordIndex;
+        const pct     = Math.round((idx / appState.wordsArray.length) * 100);
+        // Extraire un aperçu du texte à cette position
+        const preview = appState.wordsArray.slice(idx, idx + 12).join('').trim().substring(0, 60) + '…';
+        const bks     = _getBookmarks(docId);
+        // Éviter les doublons proches (±2%)
+        if (bks.some(b => Math.abs(b.pct - pct) < 2)) return toast("Un marque-page existe déjà ici.");
+        bks.push({ wordIndex: idx, pct, preview, date: new Date().toISOString() });
+        bks.sort((a, b) => a.wordIndex - b.wordIndex);
+        _saveBookmarks(docId, bks);
+        // Feedback visuel sur le bouton
+        const btn = $('#bookmark-add-btn');
+        btn.classList.add('active');
+        btn.innerHTML = '<i data-lucide="bookmark-check"></i><span>Ajouté !</span>';
+        if (window.lucide) lucide.createIcons();
+        setTimeout(() => {
+          btn.classList.remove('active');
+          btn.innerHTML = '<i data-lucide="bookmark-plus"></i><span>Marquer</span>';
+          if (window.lucide) lucide.createIcons();
+        }, 2000);
+        // Afficher le panneau
+        const panel = $('#bookmarks-panel');
+        if (panel) panel.style.display = 'block';
+        renderBookmarks();
+        toast(`🔖 Marque-page ajouté à ${pct}%`);
+      });
+
+      $('#bookmarks-close').addEventListener('click', () => {
+        const panel = $('#bookmarks-panel');
+        if (panel) panel.style.display = 'none';
+      });
+
+      // ─── #7 PARTAGE ──────────────────────────────────────────────────────────
+      // Bouton aide (top-bar)
+      $('#help-btn').addEventListener('click', () => navigate('help'));
+
+      $('#share-btn').addEventListener('click', async () => {
+        const doc  = appState.docs.find(d => d.id === appState.currentDocId);
+        const url  = 'https://laurent-67370.github.io/speechify-pwa/';
+        const text = doc ? `J'écoute "${doc.title}" sur SpeechifyPro` : 'SpeechifyPro — Lecteur audio de documents';
+        try {
+          if (navigator.share) {
+            await navigator.share({ title: 'SpeechifyPro', text, url });
+          } else {
+            await navigator.clipboard.writeText(url);
+            toast("🔗 Lien copié dans le presse-papiers !");
+          }
+        } catch(e) {
+          if (e.name !== 'AbortError') {
+            await navigator.clipboard.writeText(url).catch(() => {});
+            toast("🔗 Lien copié !");
+          }
+        }
+      });
+
+      // Export TXT
+      $('#export-audio-btn').addEventListener('click', () => {
+        const doc = appState.docs.find(d => d.id === appState.currentDocId);
+        if (!doc) return toast("Aucun fichier actif.");
+        const payload = `=== EXPORT SPEECHIFY PRO ===\nTitre : ${doc.title}\nDurée estimée : ${doc.minutes} min\n\nContenu :\n${doc.content}`;
+        const blob = new Blob([payload], { type: 'text/plain;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${doc.title.replace(/[^a-z0-9]+/gi, '-')}-export.txt`;
+        link.click();
+        toast("Export téléchargé !");
+      });
+
+      // Thème
+      $('#theme-toggle-btn').addEventListener('click', () => {
+        appState.theme = appState.theme === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', appState.theme);
+        // SVG inline : soleil = dark mode actif, lune = light mode actif
+        const themeIcon = $('#theme-icon');
+        if (themeIcon) {
+          themeIcon.innerHTML = appState.theme === 'dark'
+            ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>'
+            : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+        }
+        savePrefs();
+        if (window.lucide) lucide.createIcons();
+      });
+
+      // Navigation
+      $$('[data-route-nav]').forEach(btn => btn.addEventListener('click', () => navigate(btn.dataset.routeNav)));
+      $$('[data-route-go]').forEach(btn => btn.addEventListener('click', () => navigate(btn.dataset.routeGo)));
+      $$('[data-close-modal]').forEach(btn => btn.addEventListener('click', () => { const m = $('.modal.active'); if (m) m.classList.remove('active'); }));
+
+      $('#resume-listening').addEventListener('click', () => navigate('reader'));
+      const playbackTrigger = () => {
+        if (appState.playing) {
+          stopSpeechEngine();
+        } else {
+          // Désactiver temporairement pour éviter double-clic pendant le délai 120ms
+          $('#play-toggle').disabled = true;
+          $('#reader-play').disabled = true;
+          $('#reader-status').textContent = 'Démarrage…';
+          startSpeechEngine();
+        }
+      };
+      $('#play-toggle').addEventListener('click', playbackTrigger);
+      $('#reader-play').addEventListener('click', playbackTrigger);
+
+      $('#speed-range').addEventListener('input', (e) => {
+        appState.speed = parseFloat(e.target.value);
+        $('#speed-value').textContent = `${appState.speed.toFixed(1)}x`;
+        // Sauvegarder aussi dans le doc courant
+        const doc = appState.docs.find(d => d.id === appState.currentDocId);
+        if (doc) { doc.speed = appState.speed; saveDoc(doc); }
+        savePrefs();
+        if (appState.playing) startSpeechEngine();
+      });
+
+      $('#voice-select').addEventListener('change', (e) => {
+        appState.selectedVoiceName = e.target.value;
+        // Mettre à jour le badge qualité
+        const cur = synthVoices.find(v => v.name === appState.selectedVoiceName);
+        const badge = $('#voice-quality-badge');
+        if (badge && cur) badge.textContent = _voiceQualityLabel(cur);
+        savePrefs();
+        if (appState.playing) startSpeechEngine();
+      });
+
+      // Tonalité (pitch)
+      $('#pitch-range').addEventListener('input', (e) => {
+        appState.pitch = parseFloat(e.target.value);
+        $('#pitch-value').textContent = appState.pitch.toFixed(1);
+        savePrefs();
+        if (appState.playing) startSpeechEngine();
+      });
+
+      // Pause entre paragraphes
+      $('#pause-range').addEventListener('input', (e) => {
+        appState.pauseMs = parseInt(e.target.value);
+        $('#pause-value').textContent = (appState.pauseMs / 1000).toFixed(1) + 's';
+        savePrefs();
+      });
+
+      // Mode de lecture
+      $$('.read-mode-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          $$('.read-mode-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          appState.readMode = btn.dataset.mode;
+          savePrefs();
+          if (appState.playing) startSpeechEngine();
+          toast(`Mode : ${appState.readMode === 'sentence' ? 'Par phrase' : 'Par paragraphe'}`);
+        });
+      });
+
+      // Curseur de synchronisation highlight ↔ audio
+      $('#sync-range').addEventListener('input', (e) => {
+        CHARS_PER_SEC = parseInt(e.target.value);
+        appState.syncSpeed = CHARS_PER_SEC;
+        $('#sync-value').textContent = _syncLabel(CHARS_PER_SEC);
+        savePrefs();
+        // Si en lecture : relancer immédiatement les timers avec la nouvelle valeur
+        if (appState.playing) {
+          _clearWordTimers();
+          // Relancer le highlight du chunk courant depuis le mot actuel
+          const chunk = _chunks[_chunkIndex];
+          if (chunk) {
+            // Trouver l'index du mot courant dans le chunk
+            const currentWi = appState.currentWordIndex;
+            const subWords = chunk.words.filter(w => w.wordIdx >= currentWi);
+            if (subWords.length) {
+              // Recalculer les timers à partir de maintenant
+              const rate    = appState.speed || 1;
+              const mspChar = 1000 / (CHARS_PER_SEC * rate);
+              // Offset char du mot courant dans le chunk
+              const baseCharStart = subWords[0].charStart;
+              subWords.forEach(w => {
+                const delay = (w.charStart - baseCharStart) * mspChar;
+                const t = setTimeout(() => {
+                  if (!appState.playing) return;
+                  appState.currentWordIndex = w.wordIdx;
+                  autoHighlightAndCenter(w.wordIdx);
+                }, delay);
+                _wordTimers.push(t);
+              });
+            }
+          }
+        }
+      });
+
+      // Initialiser l'état visuel du bouton surlignage (ON par défaut)
+
+      $('#highlight-toggle').addEventListener('click', () => {
+        appState.highlight = !appState.highlight;
+        updateHighlightBtn();
+        if (appState.playing) {
+          autoHighlightAndCenter(appState.currentWordIndex);
+        } else {
+          $$('#reader-text span[id^="word-"]').forEach(s => {
+            s.classList.remove('word-highlight', 'word-read');
+          });
+        }
+      });
+      updateHighlightBtn();
+
+      // ─── MODE ZEN — téléprompter fond noir ───────────────────────────────────
+
+
+
+
+
+      // Bouton toolbar → ouvre/ferme le zen
+      $('#focus-toggle').addEventListener('click', () => {
+        appState.isFocusMode ? closeZenMode() : openZenMode();
+      });
+
+      // Bouton ✕ dans l'overlay
+      $('#zen-close').addEventListener('click', closeZenMode);
+
+      // Bouton play zen
+      $('#zen-play').addEventListener('click', () => {
+        if (appState.playing) stopSpeechEngine();
+        else {
+          $('#zen-play').disabled = true;
+          startSpeechEngine();
+        }
+        _zenUpdatePlayBtn();
+      });
+
+      // Skip zen
+      $('#zen-back').addEventListener('click',    () => skipTimelineWords(-30));
+      $('#zen-forward').addEventListener('click', () => skipTimelineWords(30));
+
+      // Fermer avec touche Escape
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && appState.isFocusMode) closeZenMode();
+      });
+
+      // Toggle panneau réglages
+      let _settingsOpen = true;
+      $('#settings-toggle-btn').addEventListener('click', () => {
+        _settingsOpen = !_settingsOpen;
+        const panel = $('#reader-settings-panel');
+        const btn   = $('#settings-toggle-btn');
+        panel.style.display = _settingsOpen ? '' : 'none';
+        if (_settingsOpen) {
+          btn.classList.add('active');
+          btn.innerHTML = '<i data-lucide="settings-2"></i><span>Réglages ▲</span>';
+        } else {
+          btn.classList.remove('active');
+          btn.innerHTML = '<i data-lucide="settings-2"></i><span>Réglages</span>';
+        }
+        if (window.lucide) lucide.createIcons();
+      });
+
+      $('#summary-generate') && $('#summary-generate').addEventListener('click', () => navigate('summary'));
+      $('#library-search').addEventListener('input', (e) => { appState.search = e.target.value; renderAll(); });
+      $('#sort-library').addEventListener('click', () => { appState.sortAsc = !appState.sortAsc; renderAll(); });
+
+      $$('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+        $$('.tab-btn').forEach(x => x.classList.remove('active'));
+        btn.classList.add('active');
+        appState.currentFilter = btn.dataset.filter;
+        renderAll();
+      }));
+
+      $('#rewind-btn').addEventListener('click', () => skipTimelineWords(-30));
+      $('#forward-btn').addEventListener('click', () => skipTimelineWords(30));
+      $('#reader-back-15').addEventListener('click', () => skipTimelineWords(-30));
+      $('#reader-next-15').addEventListener('click', () => skipTimelineWords(30));
+
+      // ─── POPUP SÉLECTION DE TEXTE ────────────────────────────────────────────
+      const selectionPopup = $('#selection-popup');
+      let _selectionTimer = null;
+
+
+
+      // Sur desktop : mouseup
+      document.addEventListener('mouseup', () => {
+        clearTimeout(_selectionTimer);
+        _selectionTimer = setTimeout(handleTextSelection, 60);
+      });
+
+      // Sur mobile : touchend
+      document.addEventListener('touchend', (e) => {
+        // Ignorer si c'est le double-tap navigation
+        clearTimeout(_selectionTimer);
+        _selectionTimer = setTimeout(handleTextSelection, 200);
+      });
+
+      // Clic sur le popup → trouver le mot sélectionné et lancer la lecture
+      selectionPopup.addEventListener('mousedown', (e) => e.preventDefault()); // empêche la sélection de disparaître
+      selectionPopup.addEventListener('click', () => {
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed) { hideSelectionPopup(); return; }
+
+        const doc = appState.docs.find(d => d.id === appState.currentDocId);
+        if (!doc) { hideSelectionPopup(); return; }
+
+        const selectedText = sel.toString().trim();
+        if (!selectedText) { hideSelectionPopup(); return; }
+
+        // Trouver la position du texte sélectionné dans le contenu
+        if (!appState.wordsArray.length) appState.wordsArray = doc.content.split(/(\s+)/);
+        const fullText = appState.wordsArray.join('');
+        const selectedIdx = fullText.toLowerCase().indexOf(selectedText.toLowerCase());
+
+        if (selectedIdx !== -1) {
+          // Retrouver l'index de mot dans wordsArray correspondant à cette position char
+          let pos = 0;
+          for (let i = 0; i < appState.wordsArray.length; i++) {
+            if (pos >= selectedIdx && appState.wordsArray[i].trim() !== '') {
+              appState.currentWordIndex = i;
+              break;
+            }
+            pos += appState.wordsArray[i].length;
+          }
+        }
+
+        sel.removeAllRanges();
+        hideSelectionPopup();
+
+        // Lancer la lecture depuis la position trouvée
+        stopSpeechEngine();
+        navigate('reader');
+        setTimeout(() => {
+          $('#play-toggle').disabled = true;
+          $('#reader-play').disabled = true;
+          startSpeechEngine();
+        }, 100);
+      });
+
+      // Fermer le popup si clic ailleurs
+      document.addEventListener('mousedown', (e) => {
+        if (e.target !== selectionPopup && !selectionPopup.contains(e.target)) hideSelectionPopup();
+      });
+
+      $('#save-import').addEventListener('click', () => {
+        const title = $('#import-title').value.trim() || "Texte Manuel";
+        const content = $('#import-content').value;
+        const type = $('#import-type').value;
+        if (!content.trim()) return toast("⚠️ Veuillez saisir du texte.");
+        insertDocToLibrary(title, content, type, 'Manuel');
+        $('#import-title').value = '';
+        $('#import-content').value = '';
+      });
+
+      $('#load-demo-kindle').addEventListener('click', () => {
+        insertDocToLibrary(
+          "Guide d'accessibilité.txt",
+          "L'accessibilité web permet à toute personne d'accéder aux contenus textuels et numériques sans barrière technique. La synthèse vocale assistée par un surlignage dynamique au mot près améliore la rétention d'informations pour les profils dyslexiques ou les professionnels en déplacement. Les fonctionnalités de contrôle de la vitesse et le choix de la voix permettent une expérience personnalisée et efficace.",
+          "txt", "Démo"
+        );
+      });
+
+
+      // ─── #1 COMPTEUR QUOTIDIEN ───────────────────────────────────────────────
+      let _dailyTimer = null;
+
+
+
+
+      // Incrémenter le compteur pendant la lecture (toutes les 10s)
+
+      // Modifier l'objectif au tap
+      $('#daily-target').addEventListener('click', () => {
+        const val = prompt(`Objectif quotidien (minutes) :`, appState.dailyGoalMin);
+        const n   = parseInt(val);
+        if (n > 0 && n <= 480) {
+          appState.dailyGoalMin = n;
+          savePrefs();
+          renderDailyGoal();
+        }
+      });
+
+      // ─── #2 IMPORT URL ───────────────────────────────────────────────────────
+      // Chaque proxy a sa propre stratégie de parsing
+      const CORS_PROXIES = [
+        {
+          name: 'lhusser.fr (proxy perso)',
+          url:  (u) => `https://www.lhusser.fr/proxy.php?url=${encodeURIComponent(u)}`,
+          extract: async (resp) => {
+            const data = await resp.json();
+            if (data.error) throw new Error(data.error);
+            return data.contents || null;
+          }
+        },
+        {
+          name: 'allorigins',
+          url:  (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+          extract: async (resp) => {
+            const data = await resp.json();
+            return data.contents || null;
+          }
+        },
+        {
+          name: 'corsproxy.io',
+          url:  (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+          extract: async (resp) => resp.text()
+        },
+        {
+          name: 'codetabs',
+          url:  (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+          extract: async (resp) => resp.text()
+        },
+      ];
+
+
+
+
+      $('#url-import-btn').addEventListener('click', () => {
+        importFromUrl($('#url-import-input').value.trim());
+      });
+      $('#url-import-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') importFromUrl(e.target.value.trim());
+      });
+
+      // ─── #3 OCR IMAGE (Tesseract.js) ─────────────────────────────────────────
+      $('#file-loader-ocr').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+          toast("⚠️ Fichier non supporté — choisissez une image.");
+          return;
+        }
+        processOcrImage(file);
+      });
+
+
+      // ─── #8 ONBOARDING ───────────────────────────────────────────────────────
+      const ONBOARDING_STEPS = [
+        { icon: 'headphones',  title: 'Bienvenue sur SpeechifyPro', desc: 'Transformez vos PDF, articles et textes en audio avec surlignage synchronisé.' },
+        { icon: 'upload',      title: 'Importez vos documents',      desc: 'PDF, TXT, image OCR ou URL d\'article web — tout devient lisible et écoutable.' },
+        { icon: 'highlighter', title: 'Surlignage en temps réel',    desc: 'Chaque mot lu est surligné. Activez "Surlignage ON" et suivez la lecture visuellement.' },
+        { icon: 'eye-off',     title: 'Mode Zen immersif',           desc: 'Fond noir total, texte centré, téléprompter. Tap sur "Mode Zen" depuis la page Lecture.' },
+      ];
+      let _obStep = 0;
+
+
+
+
+      $('#ob-next').addEventListener('click', () => {
+        _obStep++;
+        if (_obStep >= ONBOARDING_STEPS.length) { _closeOnboarding(); return; }
+        _renderOnboardingStep(_obStep);
+      });
+      $('#ob-skip').addEventListener('click', _closeOnboarding);
+
+      // ─── #10 STATISTIQUES DÉTAILLÉES ─────────────────────────────────────────
+
+
+      // Sauvegarder les minutes du jour dans localStorage (clé par date)
+
+      // ─── #11 NOTIFICATION FIN DE LECTURE ─────────────────────────────────────
+
+
+
+      let _libCurrentCat = 'all';
+      let _libSearchQuery = '';
+
+      // Récupérer les URLs de téléchargement via l'API Gutendex (côté navigateur)
+  
+</script>
 </body>
 </html>
