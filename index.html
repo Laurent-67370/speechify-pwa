@@ -1997,7 +1997,7 @@
       // Vitesse de sync highlight : ajustable via le curseur (valeur par défaut = 9 chars/sec)
       // Plus la valeur est basse → highlight plus lent → correspond mieux aux voix lentes
       let CHARS_PER_SEC = 9;
-      const CHUNK_MAX     = 2500;
+      const CHUNK_MAX     = 1200; // réduit pour meilleure fluidité TTS mobile
 
       function _startKeepAlive() {
         _stopKeepAlive();
@@ -2027,9 +2027,12 @@
         const mode  = appState.readMode || 'sentence';
 
         // Regex de coupure selon le mode
+        // Coupure étendue : ponctuation forte + tirets longs + ellipses
         const isCutPoint = (tok) => {
           if (mode === 'sentence') {
-            return /[.!?]\s*$/.test(tok) || tok.includes('\n');
+            return /[.!?…]\s*$/.test(tok)          // fin de phrase classique + ellipse
+              || /[;]\s*$/.test(tok)               // point-virgule → pause longue
+              || tok.includes('\n');
           } else {
             return tok.includes('\n\n') || (tok.includes('\n') && tok.trim() === '');
           }
@@ -2139,7 +2142,7 @@
         _chunkIndex    = chunkIdx;
         const chunk    = _chunks[chunkIdx];
 
-        const utt      = new SpeechSynthesisUtterance(chunk.text);
+        const utt      = new SpeechSynthesisUtterance(_ttsClean(chunk.text));
         appState.utterance = utt;
 
         if (!synthVoices.length) synthVoices = window.speechSynthesis.getVoices();
@@ -2164,9 +2167,16 @@
             saveDoc(_docSnap);
           }
           // Pause entre paragraphes si le chunk se termine par un saut de ligne
-          const pauseDelay = (chunk.text.trimEnd().endsWith('\n') || chunk.endsWithParagraph)
-            ? (appState.pauseMs || 0) + 50
-            : 50;
+          // Pause modulée selon ponctuation finale pour prosodie naturelle
+          const _lastChar = chunk.text.trimEnd().slice(-1);
+          const _basePause = appState.pauseMs || 0;
+          const pauseDelay = chunk.endsWithParagraph || chunk.text.trimEnd().endsWith('\n')
+            ? _basePause + 220          // fin de paragraphe : pause longue
+            : /[.!?…]/.test(_lastChar)
+              ? _basePause + 80         // fin de phrase : pause normale
+              : /[;:]/.test(_lastChar)
+                ? _basePause + 40       // point-virgule/deux-points : pause courte
+                : _basePause + 20;      // virgule ou coupure CHUNK_MAX : micro-pause
           setTimeout(() => _speakChunk(chunkIdx + 1), pauseDelay);
         };
 
@@ -2242,7 +2252,7 @@
           if (!appState.playing) return;
           const chunk = _chunks[chunkIdx];
           if (!chunk) return;
-          const utt = new SpeechSynthesisUtterance(chunk.text);
+          const utt = new SpeechSynthesisUtterance(_ttsClean(chunk.text));
           utt._retryCount = retryCount;
           if (!synthVoices.length) synthVoices = window.speechSynthesis.getVoices();
           const voice = synthVoices.find(v => v.name === appState.selectedVoiceName);
@@ -2295,6 +2305,87 @@
         }
       });
       let _pausedChunkOnHide = -1;
+
+      // ─── PRÉPROCESSEUR TTS — QUALITÉ AUDIO ──────────────────────────
+      // Nettoie le texte AVANT envoi à speechSynthesis.
+      // N'affecte pas le texte affiché ni les positions de surlignage.
+      function _ttsClean(text) {
+        return text
+          // ── 1. Ponctuation typographique → ASCII parlé ──────────────
+          .replace(/[«»""„"]/g, '')               // guillemets → silence naturel
+          .replace(/[–—]/g, ', ')                  // tirets longs → pause courte
+          .replace(/…|\.{3,}/g, '… ')         // ellipses → pause + espace
+          .replace(/[·•◦‣▸▪▫]/g, ', ')             // puces → pause
+          .replace(/\*/g, '')                       // astérisques (markdown bold)
+          .replace(/_+/g, '')                       // soulignements markdown
+          .replace(/#{1,6}\s*/g, '')                // titres markdown
+          .replace(/\|/g, ', ')                     // tableaux markdown → pause
+
+          // ── 2. Abréviations françaises → forme longue ───────────────
+          .replace(/M\.\s/g, 'Monsieur ')
+          .replace(/Mme\.?\s/gi, 'Madame ')
+          .replace(/Mlle\.?\s/gi, 'Mademoiselle ')
+          .replace(/Dr\.?\s/gi, 'Docteur ')
+          .replace(/Pr\.?\s/gi, 'Professeur ')
+          .replace(/St\.?\s/gi, 'Saint ')
+          .replace(/etc\./gi, 'et cetera')
+          .replace(/cf\./gi, 'voir')
+          .replace(/vs\./gi, 'versus')
+          .replace(/p\.\s?ex\./gi, 'par exemple')
+          .replace(/c\.?à\.?d\.?/gi, "c'est-à-dire")
+          .replace(/i\.e\./gi, "c'est-à-dire")
+          .replace(/e\.g\./gi, 'par exemple')
+          .replace(/N\.B\./gi, 'nota bene')
+
+          // ── 3. Chiffres et unités → lisible à voix haute ────────────
+          .replace(/(\d+)\s*%/g, '$1 pourcent')
+          .replace(/(\d+)\s*€/g, '$1 euros')
+          .replace(/(\d+)\s*\$/g, '$1 dollars')
+          .replace(/(\d+)\s*km/gi, '$1 kilomètres')
+          .replace(/(\d+)\s*m(?!\w)/g, '$1 mètres')
+          .replace(/(\d+)\s*kg/gi, '$1 kilogrammes')
+          .replace(/(\d+)\s*g(?!\w)/g, '$1 grammes')
+          .replace(/(\d+)\s*h/g, '$1 heures')
+          .replace(/(\d+)\s*min/gi, '$1 minutes')
+          .replace(/(\d+)\s*s(?!\w)/g, '$1 secondes')
+          .replace(/(\d+)\s*°C/gi, '$1 degrés')
+
+          // ── 4. Nombres avec séparateurs → sans ambiguïté ────────────
+          .replace(/(\d)\s(\d{3})/g, '$1$2')    // "1 000" → "1000"
+          .replace(/(\d)\.(\d{3})/g, '$1$2')    // "1.000" → "1000" (sépar. milliers)
+
+          // ── 5. Sigles et acronymes → espacés pour épellation ─────────
+          // Ex: "TTS" → "T.T.S." pour que le TTS épelle lettre par lettre
+          // Non appliqué car certaines voix FR lisent déjà bien les sigles
+
+          // ── 6. URLs et emails → silence ─────────────────────────────
+          .replace(/https?:\/\/[^\s]+/g, '')
+          .replace(/\S+@\S+\.\S+/g, '')
+
+          // ── 7. Sauts de ligne → pauses naturelles ───────────────────
+          .replace(/
+{3,}/g, '
+
+')              // max 2 sauts
+          .replace(/
+
+/g, '. ')                  // paragraphe → fin de phrase
+          .replace(/
+/g, ', ')                    // saut simple → virgule-pause
+
+          // ── 8. Ponctuation répétée ou collée ────────────────────────
+          .replace(/([.!?]){2,}/g, '$1')           // "!!!" → "!"
+          .replace(/,{2,}/g, ',')                  // ",," → ","
+          .replace(/\s+([.!?,;:])/g, '$1')         // espace avant ponctuation
+          .replace(/([.!?,;:])([^\s"'»])/g, '$1 $2') // manque espace après ponctuation
+
+          // ── 9. Espaces parasites ─────────────────────────────────────
+          .replace(/\s{2,}/g, ' ')
+          .replace(/^\s+|\s+$/g, '')
+
+          // ── 10. Finir par ponctuation pour intonation finale ────────
+          + (text.trim().match(/[.!?]$/) ? '' : '.');
+      }
 
       function startSpeechEngine() {
         const doc = appState.docs.find(d => d.id === appState.currentDocId);
