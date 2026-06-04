@@ -3178,10 +3178,31 @@
         btn.disabled = true;
 
         try {
-          const html = await _fetchViaProxy(url, statusEl);
-
-          statusEl.textContent = '⏳ Extraction du texte…';
-          const { text, title } = _extractTextFromHtml(html, url);
+          // Détection URL texte brut Gutenberg (.txt) → import direct via proxy
+          const isGutenbergTxt = url.includes('gutenberg.org') && url.endsWith('.txt');
+          
+          let text, title;
+          
+          if (isGutenbergTxt) {
+            // Import direct du fichier TXT Gutenberg
+            statusEl.textContent = '⏳ Téléchargement du livre…';
+            const rawTxt = await _fetchViaProxy(url, statusEl);
+            // Nettoyer l'en-tête/pied Gutenberg
+            text = rawTxt
+              .replace(/.*?START OF (THE |THIS )?PROJECT GUTENBERG.*?\n/si, '')
+              .replace(/END OF (THE |THIS )?PROJECT GUTENBERG.*/si, '')
+              .trim();
+            if (!text || text.length < 500) text = rawTxt;
+            // Extraire titre depuis l'URL ou le contenu
+            const titleM = rawTxt.match(/^Title:\s*(.+)$/m);
+            title = titleM ? titleM[1].trim() : url.split('/').pop().replace('.txt','');
+          } else {
+            const html = await _fetchViaProxy(url, statusEl);
+            statusEl.textContent = '⏳ Extraction du texte…';
+            const extracted = _extractTextFromHtml(html, url);
+            text = extracted.text;
+            title = extracted.title;
+          }
 
           if (!text || text.length < 80) {
             throw new Error('Texte trop court — le site est peut-être protégé par JavaScript.');
