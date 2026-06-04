@@ -1707,7 +1707,7 @@
       // ─── PERSISTANCE COMPLÈTE — IndexedDB (docs) + localStorage (prefs) ────────
 
       // Préférences légères → localStorage
-      function savePrefs() {
+      function _savePrefsNow() {
         const prefs = {
           theme:             appState.theme,
           speed:             appState.speed,
@@ -1726,6 +1726,18 @@
           readMode:          appState.readMode,
         };
         localStorage.setItem('speechify_prefs', JSON.stringify(prefs));
+      }
+
+      // savePrefs debouncée — évite 18 écritures localStorage par interaction
+      let _savePrefsTimer = null;
+      function savePrefs() {
+        clearTimeout(_savePrefsTimer);
+        _savePrefsTimer = setTimeout(_savePrefsNow, 400);
+      }
+      // Version immédiate pour les cas critiques (fermeture app, stopSpeechEngine)
+      function savePrefsNow() {
+        clearTimeout(_savePrefsTimer);
+        _savePrefsNow();
       }
 
       function loadPrefs() {
@@ -2123,8 +2135,8 @@
             ? Math.round((appState.currentWordIndex / appState.wordsArray.length) * 100) : 0;
           saveDoc(doc);
         }
-        savePrefs();
-        $('#waveform').classList.remove('playing');
+        savePrefsNow(); // immédiat à l'arrêt
+        $('#waveform')?.classList.remove('playing');
         updateControlsUI();
       }
 
@@ -2404,7 +2416,7 @@
           renderTextInReader(true);
 
           appState.playing = true;
-          $('#waveform').classList.add('playing');
+          $('#waveform')?.classList.add('playing');
           updateControlsUI();
           _startKeepAlive();
           _startDailyTimer();
@@ -2436,7 +2448,7 @@
         // Mettre à jour la barre de progression en temps réel
         if (appState.wordsArray.length > 0) {
           const pct = Math.round((index / appState.wordsArray.length) * 100);
-          $$('.progress-fill').forEach(el => el.style.width = pct + '%');
+          $$('.progress-fill')?.forEach(el => el.style.width = pct + '%');
         }
 
         // Propager vers le Mode Zen si actif
@@ -2543,8 +2555,8 @@
       });
 
       // ✅ Labels HTML au lieu de buttons — les inputs sont maintenant correctement cliquables
-      $('#file-loader-txt').addEventListener('change', (e) => { if (e.target.files.length) uploadFileHandler(e.target.files[0]); });
-      $('#file-loader-pdf').addEventListener('change', (e) => { if (e.target.files.length) uploadFileHandler(e.target.files[0]); });
+      $('#file-loader-txt')?.addEventListener('change', (e) => { if (e.target.files.length) uploadFileHandler(e.target.files[0]); });
+      $('#file-loader-pdf')?.addEventListener('change', (e) => { if (e.target.files.length) uploadFileHandler(e.target.files[0]); });
 
       // ✅ FIX PDF.js : workerSrc configuré + progress page par page + meilleur feedback
       async function uploadFileHandler(file) {
@@ -2554,7 +2566,7 @@
         navigate('reader');
         $('#reader-text').style.display = 'none';
         $('#article-skeleton').style.display = 'flex';
-        $('#pdf-progress-block').classList.remove('active');
+        $('#pdf-progress-block')?.classList.remove('active');
 
         if (ext === 'pdf') {
           // Vérification que pdf.js est chargé
@@ -2567,7 +2579,7 @@
           fileReader.onload = async function(evt) {
             try {
               $('#article-skeleton').style.display = 'none';
-              $('#pdf-progress-block').classList.add('active');
+              $('#pdf-progress-block')?.classList.add('active');
 
               const typedArray = new Uint8Array(evt.target.result);
               const loadingTask = pdfjsLib.getDocument({ data: typedArray });
@@ -2589,12 +2601,12 @@
                 $('#pdf-progress-text').textContent = `Extraction page ${i} / ${totalPages}…`;
               }
 
-              $('#pdf-progress-block').classList.remove('active');
+              $('#pdf-progress-block')?.classList.remove('active');
               insertDocToLibrary(file.name, contentStr.trim(), 'pdf', 'Fichiers');
 
             } catch (err) {
               console.error('PDF error:', err);
-              $('#pdf-progress-block').classList.remove('active');
+              $('#pdf-progress-block')?.classList.remove('active');
               toast("❌ Erreur lors de l'analyse du PDF : " + (err.message || err));
               stopLoader();
             }
@@ -2618,7 +2630,7 @@
       function stopLoader() {
         $('#reader-text').style.display = 'block';
         $('#article-skeleton').style.display = 'none';
-        $('#pdf-progress-block').classList.remove('active');
+        $('#pdf-progress-block')?.classList.remove('active');
       }
 
       function _cleanTitle(raw) {
@@ -2682,12 +2694,12 @@
       // --- RENDU GLOBAL ---
       function navigate(route) {
         appState.route = route;
-        $$('.page').forEach(p => p.classList.remove('active'));
+        $$('.page')?.forEach(p => p.classList.remove('active'));
         const page = $(`.page[data-route="${route}"]`);
         if (page) page.classList.add('active');
         const hero = $('#hero-block');
         if (hero) hero.classList.toggle('active', route === 'home');
-        $$('.nav-item').forEach(n => n.classList.remove('active'));
+        $$('.nav-item')?.forEach(n => n.classList.remove('active'));
         const nav = $(`.nav-item[data-route-nav="${route}"]`);
         if (nav) nav.classList.add('active');
         renderAll();
@@ -2841,13 +2853,13 @@
         const track = $('#carousel-track');
         _carouselIndex = Math.max(0, _carouselIndex - 1);
         track.children[_carouselIndex]?.scrollIntoView({ behavior: 'smooth', inline: 'center' });
-        $$('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === _carouselIndex));
+        $$('.carousel-dot')?.forEach((d, i) => d.classList.toggle('active', i === _carouselIndex));
       });
       $('#carousel-next')?.addEventListener('click', () => {
         const track = $('#carousel-track');
         _carouselIndex = Math.min(appState.docs.length - 1, _carouselIndex + 1);
         track.children[_carouselIndex]?.scrollIntoView({ behavior: 'smooth', inline: 'center' });
-        $$('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === _carouselIndex));
+        $$('.carousel-dot')?.forEach((d, i) => d.classList.toggle('active', i === _carouselIndex));
       });
 
       // Sync index carrousel au scroll (swipe)
@@ -2861,19 +2873,25 @@
           if (dist < minDist) { minDist = dist; closest = i; }
         });
         _carouselIndex = closest;
-        $$('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === closest));
+        $$('.carousel-dot')?.forEach((d, i) => d.classList.toggle('active', i === closest));
       });
 
       function renderAll() {
+        const route = appState.route || 'home';
         const doc = appState.docs.find(d => d.id === appState.currentDocId);
-        if (doc) {
+
+        // ── Métadonnées doc (reader + summary + home) ──────────────────
+        if (doc && (route === 'reader' || route === 'summary' || route === 'home')) {
           $('#reader-doc-title').textContent = doc.title;
           $('#reader-doc-desc').textContent = `Type : ${doc.type.toUpperCase()} · ${doc.minutes} min · ${doc.language}`;
           $('#current-doc-badge').textContent = doc.type.toUpperCase();
           $('#full-reader-title').textContent = doc.title;
           $('#full-reader-meta').textContent = `${doc.language} · Vitesse : ${appState.speed}x · ${doc.minutes} min`;
-          $('#summary-doc-title').textContent = doc.title;
+        }
 
+        // ── Résumé (summary uniquement) ────────────────────────────────
+        if (doc && route === 'summary') {
+          $('#summary-doc-title').textContent = doc.title;
           $('#summary-points').innerHTML = doc.summary.map((s, i) => `
             <div class="summary-point" id="sm-pt-${i}">
               <strong>${s.headline}</strong>
@@ -2884,7 +2902,6 @@
             const card = $(`#sm-pt-${i}`);
             if (card) card.addEventListener('click', () => card.classList.toggle('expanded'));
           });
-
           $('#insight-list').innerHTML = doc.insights
             ? doc.insights.map((ins, i) => `
               <div class="insight-point" id="ins-pt-${i}">
@@ -2893,82 +2910,87 @@
               </div>
             `).join('')
             : '<div class="empty-state">Aucun point clé supplémentaire.</div>';
-
           doc.insights && doc.insights.forEach((ins, i) => {
             const card = $(`#ins-pt-${i}`);
             if (card) card.addEventListener('click', () => card.classList.toggle('expanded'));
           });
         }
 
-        $('#stat-docs').textContent = appState.docs.length;
-        $('#stat-minutes').textContent = `${appState.docs.reduce((acc, d) => acc + (d.minutes || 5), 0)} m`;
-
-        // Subtitle Home
-        const totalMin = appState.docs.reduce((acc, d) => acc + (d.minutes || 0), 0);
-        const sub = $('#home-subtitle');
-        if (sub) sub.textContent = `${appState.docs.length} document${appState.docs.length > 1 ? 's' : ''} · ${totalMin} min`;
-
-        // Carrousel Home
-        renderCarousel();
-
-        // Objectif quotidien
-        renderDailyGoal();
-
-        // Barre de progression de lecture
-        const curDoc = appState.docs.find(d => d.id === appState.currentDocId);
-        if (curDoc && appState.wordsArray.length > 0) {
-          const pct = Math.round((appState.currentWordIndex / appState.wordsArray.length) * 100);
-          $$('.progress-fill').forEach(el => el.style.width = pct + '%');
+        // ── Stats globales (stats + home) ──────────────────────────────
+        if (route === 'stats' || route === 'home') {
+          $('#stat-docs').textContent = appState.docs.length;
+          $('#stat-minutes').textContent = `${appState.docs.reduce((acc, d) => acc + (d.minutes || 5), 0)} m`;
         }
 
-        renderTextInReader(appState.playing);
+        // ── Home uniquement ────────────────────────────────────────────
+        if (route === 'home') {
+          const totalMin = appState.docs.reduce((acc, d) => acc + (d.minutes || 0), 0);
+          const sub = $('#home-subtitle');
+          if (sub) sub.textContent = `${appState.docs.length} document${appState.docs.length > 1 ? 's' : ''} · ${totalMin} min`;
+          renderCarousel();
+          renderDailyGoal();
+        }
 
-        // Bibliothèque
-        let list = [...appState.docs];
-        if (appState.currentFilter !== 'all') list = list.filter(d => d.type === appState.currentFilter);
-        if (appState.search.trim()) list = list.filter(d => d.title.toLowerCase().includes(appState.search.toLowerCase()));
-        list.sort((a, b) => appState.sortAsc ? a.title.localeCompare(b.title) : b.id - a.id);
+        // ── Progression lecture (reader + home) ────────────────────────
+        if (route === 'reader' || route === 'home') {
+          const curDoc = appState.docs.find(d => d.id === appState.currentDocId);
+          if (curDoc && appState.wordsArray.length > 0) {
+            const pct = Math.round((appState.currentWordIndex / appState.wordsArray.length) * 100);
+            $$('.progress-fill')?.forEach(el => el.style.width = pct + '%');
+          }
+          if (route === 'reader') renderTextInReader(appState.playing);
+        }
 
-        const container = $('#library-list');
-        if (!list.length) {
-          container.innerHTML = `<div class="empty-state">Aucun élément trouvé.</div>`;
-        } else {
-          container.innerHTML = list.map(d => `
-            <div class="card library-item" style="${d.id === appState.currentDocId ? 'border-color:var(--color-primary);' : ''}">
-              <div class="thumb"><i data-lucide="${d.type === 'pdf' ? 'file-text' : d.type === 'web' ? 'globe' : 'file'}"></i></div>
-              <div class="meta">
-                <h4>${d.title}</h4>
-                <p>${d.type.toUpperCase()} · ${d.minutes} min · ${d.language}</p>
-              </div>
-              <div class="list-actions">
-                <button class="small-btn btn-select" id="sel-doc-${d.id}">Écouter</button>
-                <button class="small-btn btn-delete" id="del-doc-${d.id}" style="color:var(--color-danger); border-color:rgba(222,99,135,.2);" title="Supprimer"><i data-lucide="trash-2" style="width:14px;"></i></button>
-              </div>
-            </div>
-          `).join('');
+        // ── Bibliothèque (library uniquement) ─────────────────────────
+        if (route === 'library') {
+          let list = [...appState.docs];
+          if (appState.currentFilter !== 'all') list = list.filter(d => d.type === appState.currentFilter);
+          if (appState.search.trim()) list = list.filter(d => d.title.toLowerCase().includes(appState.search.toLowerCase()));
+          list.sort((a, b) => appState.sortAsc ? a.title.localeCompare(b.title) : b.id - a.id);
 
-          list.forEach(d => {
-            $(`#sel-doc-${d.id}`).addEventListener('click', () => {
-              appState.currentDocId     = d.id;
-              appState.currentWordIndex = d.wordIndex || 0;
-              stopSpeechEngine();
-              appState.wordsArray = d.content.split(/(\s+)/);
-              savePrefs();
-              navigate('reader');
-            });
-            $(`#del-doc-${d.id}`).addEventListener('click', async (e) => {
-              e.stopPropagation();
-              appState.docs = appState.docs.filter(item => item.id !== d.id);
-              if (appState.currentDocId === d.id) {
-                stopSpeechEngine();
-                appState.currentDocId     = appState.docs.length ? appState.docs[0].id : null;
-                appState.currentWordIndex = 0;
-              }
-              await deleteDoc(d.id);
-              renderAll();
-              toast("Document supprimé.");
-            });
-          });
+          const container = $('#library-list');
+          if (container) {
+            if (!list.length) {
+              container.innerHTML = `<div class="empty-state">Aucun élément trouvé.</div>`;
+            } else {
+              container.innerHTML = list.map(d => `
+                <div class="card library-item" style="${d.id === appState.currentDocId ? 'border-color:var(--color-primary);' : ''}">
+                  <div class="thumb"><i data-lucide="${d.type === 'pdf' ? 'file-text' : d.type === 'web' ? 'globe' : 'file'}"></i></div>
+                  <div class="meta">
+                    <h4>${d.title}</h4>
+                    <p>${d.type.toUpperCase()} · ${d.minutes} min · ${d.language}</p>
+                  </div>
+                  <div class="list-actions">
+                    <button class="small-btn btn-select" id="sel-doc-${d.id}">Écouter</button>
+                    <button class="small-btn btn-delete" id="del-doc-${d.id}" style="color:var(--color-danger); border-color:rgba(222,99,135,.2);" title="Supprimer"><i data-lucide="trash-2" style="width:14px;"></i></button>
+                  </div>
+                </div>
+              `).join('');
+
+              list.forEach(d => {
+                $(`#sel-doc-${d.id}`)?.addEventListener('click', () => {
+                  appState.currentDocId     = d.id;
+                  appState.currentWordIndex = d.wordIndex || 0;
+                  stopSpeechEngine();
+                  appState.wordsArray = d.content.split(/(\s+)/);
+                  savePrefs();
+                  navigate('reader');
+                });
+                $(`#del-doc-${d.id}`)?.addEventListener('click', async (e) => {
+                  e.stopPropagation();
+                  appState.docs = appState.docs.filter(item => item.id !== d.id);
+                  if (appState.currentDocId === d.id) {
+                    stopSpeechEngine();
+                    appState.currentDocId     = appState.docs.length ? appState.docs[0].id : null;
+                    appState.currentWordIndex = 0;
+                  }
+                  await deleteDoc(d.id);
+                  renderAll();
+                  toast("Document supprimé.");
+                });
+              });
+            }
+          }
         }
 
         $('#speed-value').textContent = `${appState.speed.toFixed(1)}x`;
@@ -2977,7 +2999,7 @@
 
       // Double tap pour navigation
       let lastTap = 0;
-      $('#reader-text').addEventListener('touchend', (e) => {
+      $('#reader-text')?.addEventListener('touchend', (e) => {
         const now = Date.now(); const delta = now - lastTap;
         if (delta < 300 && delta > 0) {
           e.preventDefault();
@@ -3100,7 +3122,7 @@
       });
 
       // Import EPUB
-      $('#epub-file-input').addEventListener('change', async (e) => {
+      $('#epub-file-input')?.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
         if (typeof JSZip === 'undefined') {
@@ -3112,7 +3134,7 @@
       });
 
       // Export TXT
-      $('#export-audio-btn').addEventListener('click', () => {
+      $('#export-audio-btn')?.addEventListener('click', () => {
         const doc = appState.docs.find(d => d.id === appState.currentDocId);
         if (!doc) return toast("Aucun fichier actif.");
         const payload = `=== EXPORT SPEECHIFY PRO ===\nTitre : ${doc.title}\nDurée estimée : ${doc.minutes} min\n\nContenu :\n${doc.content}`;
@@ -3125,7 +3147,7 @@
       });
 
       // Thème
-      $('#theme-toggle-btn').addEventListener('click', () => {
+      $('#theme-toggle-btn')?.addEventListener('click', () => {
         appState.theme = appState.theme === 'dark' ? 'light' : 'dark';
         document.documentElement.setAttribute('data-theme', appState.theme);
         // SVG inline : soleil = dark mode actif, lune = light mode actif
@@ -3140,11 +3162,11 @@
       });
 
       // Navigation
-      $$('[data-route-nav]').forEach(btn => btn.addEventListener('click', () => navigate(btn.dataset.routeNav)));
-      $$('[data-route-go]').forEach(btn => btn.addEventListener('click', () => navigate(btn.dataset.routeGo)));
-      $$('[data-close-modal]').forEach(btn => btn.addEventListener('click', () => { const m = $('.modal.active'); if (m) m.classList.remove('active'); }));
+      $$('[data-route-nav]')?.forEach(btn => btn.addEventListener('click', () => navigate(btn.dataset.routeNav)));
+      $$('[data-route-go]')?.forEach(btn => btn.addEventListener('click', () => navigate(btn.dataset.routeGo)));
+      $$('[data-close-modal]')?.forEach(btn => btn.addEventListener('click', () => { const m = $('.modal.active'); if (m) m.classList.remove('active'); }));
 
-      $('#resume-listening').addEventListener('click', () => navigate('reader'));
+      $('#resume-listening')?.addEventListener('click', () => navigate('reader'));
       const playbackTrigger = () => {
         if (appState.playing) {
           stopSpeechEngine();
@@ -3156,10 +3178,10 @@
           startSpeechEngine();
         }
       };
-      $('#play-toggle').addEventListener('click', playbackTrigger);
-      $('#reader-play').addEventListener('click', playbackTrigger);
+      $('#play-toggle')?.addEventListener('click', playbackTrigger);
+      $('#reader-play')?.addEventListener('click', playbackTrigger);
 
-      $('#speed-range').addEventListener('input', (e) => {
+      $('#speed-range')?.addEventListener('input', (e) => {
         appState.speed = parseFloat(e.target.value);
         $('#speed-value').textContent = `${appState.speed.toFixed(1)}x`;
         // Sauvegarder aussi dans le doc courant
@@ -3169,7 +3191,7 @@
         if (appState.playing) startSpeechEngine();
       });
 
-      $('#voice-select').addEventListener('change', (e) => {
+      $('#voice-select')?.addEventListener('change', (e) => {
         appState.selectedVoiceName = e.target.value;
         // Mettre à jour le badge qualité
         const cur = synthVoices.find(v => v.name === appState.selectedVoiceName);
@@ -3195,9 +3217,9 @@
       });
 
       // Mode de lecture
-      $$('.read-mode-btn').forEach(btn => {
+      $$('.read-mode-btn')?.forEach(btn => {
         btn.addEventListener('click', () => {
-          $$('.read-mode-btn').forEach(b => b.classList.remove('active'));
+          $$('.read-mode-btn')?.forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
           appState.readMode = btn.dataset.mode;
           savePrefs();
@@ -3214,7 +3236,7 @@
         if (v <= 16) return 'Rapide';
         return 'Très rapide';
       }
-      $('#sync-range').addEventListener('input', (e) => {
+      $('#sync-range')?.addEventListener('input', (e) => {
         CHARS_PER_SEC = parseInt(e.target.value);
         appState.syncSpeed = CHARS_PER_SEC;
         $('#sync-value').textContent = _syncLabel(CHARS_PER_SEC);
@@ -3261,13 +3283,13 @@
         if (window.lucide) lucide.createIcons();
       }
 
-      $('#highlight-toggle').addEventListener('click', () => {
+      $('#highlight-toggle')?.addEventListener('click', () => {
         appState.highlight = !appState.highlight;
         updateHighlightBtn();
         if (appState.playing) {
           autoHighlightAndCenter(appState.currentWordIndex);
         } else {
-          $$('#reader-text span[id^="word-"]').forEach(s => {
+          $$('#reader-text span[id^="word-"]')?.forEach(s => {
             s.classList.remove('word-highlight', 'word-read');
           });
         }
@@ -3403,7 +3425,7 @@
 
       function closeZenMode() {
         appState.isFocusMode = false;
-        $('#zen-overlay').classList.remove('active');
+        $('#zen-overlay')?.classList.remove('active');
         document.body.style.overflow = '';
         const btn = $('#focus-toggle');
         btn.classList.remove('active');
@@ -3513,15 +3535,15 @@
 
 
       // Bouton toolbar → ouvre/ferme le zen
-      $('#focus-toggle').addEventListener('click', () => {
+      $('#focus-toggle')?.addEventListener('click', () => {
         appState.isFocusMode ? closeZenMode() : openZenMode();
       });
 
       // Bouton ✕ dans l'overlay
-      $('#zen-close').addEventListener('click', closeZenMode);
+      $('#zen-close')?.addEventListener('click', closeZenMode);
 
       // Bouton play zen
-      $('#zen-play').addEventListener('click', () => {
+      $('#zen-play')?.addEventListener('click', () => {
         if (appState.playing) stopSpeechEngine();
         else {
           $('#zen-play').disabled = true;
@@ -3531,8 +3553,8 @@
       });
 
       // Skip zen
-      $('#zen-back').addEventListener('click',    () => skipTimelineWords(-30));
-      $('#zen-forward').addEventListener('click', () => skipTimelineWords(30));
+      $('#zen-back')?.addEventListener('click',    () => skipTimelineWords(-30));
+      $('#zen-forward')?.addEventListener('click', () => skipTimelineWords(30));
 
       // Fermer avec touche Escape
       document.addEventListener('keydown', (e) => {
@@ -3541,7 +3563,7 @@
 
       // Toggle panneau réglages
       let _settingsOpen = true;
-      $('#settings-toggle-btn').addEventListener('click', () => {
+      $('#settings-toggle-btn')?.addEventListener('click', () => {
         _settingsOpen = !_settingsOpen;
         const panel = $('#reader-settings-panel');
         const btn   = $('#settings-toggle-btn');
@@ -3556,21 +3578,21 @@
         if (window.lucide) lucide.createIcons();
       });
 
-      $('#summary-generate') && $('#summary-generate').addEventListener('click', () => navigate('summary'));
-      $('#library-search').addEventListener('input', (e) => { appState.search = e.target.value; renderAll(); });
-      $('#sort-library').addEventListener('click', () => { appState.sortAsc = !appState.sortAsc; renderAll(); });
+      $('#summary-generate') && $('#summary-generate')?.addEventListener('click', () => navigate('summary'));
+      $('#library-search')?.addEventListener('input', (e) => { appState.search = e.target.value; renderAll(); });
+      $('#sort-library')?.addEventListener('click', () => { appState.sortAsc = !appState.sortAsc; renderAll(); });
 
-      $$('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
-        $$('.tab-btn').forEach(x => x.classList.remove('active'));
+      $$('.tab-btn')?.forEach(btn => btn.addEventListener('click', () => {
+        $$('.tab-btn')?.forEach(x => x.classList.remove('active'));
         btn.classList.add('active');
         appState.currentFilter = btn.dataset.filter;
         renderAll();
       }));
 
-      $('#rewind-btn').addEventListener('click', () => skipTimelineWords(-30));
-      $('#forward-btn').addEventListener('click', () => skipTimelineWords(30));
-      $('#reader-back-15').addEventListener('click', () => skipTimelineWords(-30));
-      $('#reader-next-15').addEventListener('click', () => skipTimelineWords(30));
+      $('#rewind-btn')?.addEventListener('click', () => skipTimelineWords(-30));
+      $('#forward-btn')?.addEventListener('click', () => skipTimelineWords(30));
+      $('#reader-back-15')?.addEventListener('click', () => skipTimelineWords(-30));
+      $('#reader-next-15')?.addEventListener('click', () => skipTimelineWords(30));
 
       // ─── POPUP SÉLECTION DE TEXTE ────────────────────────────────────────────
       const selectionPopup = $('#selection-popup');
@@ -3659,7 +3681,7 @@
         if (e.target !== selectionPopup && !selectionPopup.contains(e.target)) hideSelectionPopup();
       });
 
-      $('#save-import').addEventListener('click', () => {
+      $('#save-import')?.addEventListener('click', () => {
         const title = $('#import-title').value.trim() || "Texte Manuel";
         const content = $('#import-content').value;
         const type = $('#import-type').value;
@@ -3669,7 +3691,7 @@
         $('#import-content').value = '';
       });
 
-      $('#load-demo-kindle').addEventListener('click', () => {
+      $('#load-demo-kindle')?.addEventListener('click', () => {
         insertDocToLibrary(
           "Guide d'accessibilité.txt",
           "L'accessibilité web permet à toute personne d'accéder aux contenus textuels et numériques sans barrière technique. La synthèse vocale assistée par un surlignage dynamique au mot près améliore la rétention d'informations pour les profils dyslexiques ou les professionnels en déplacement. Les fonctionnalités de contrôle de la vitesse et le choix de la voix permettent une expérience personnalisée et efficace.",
@@ -3903,7 +3925,7 @@
       }
 
       $('#url-import-btn')?.addEventListener('click', () => {
-        importFromUrl($('#url-import-input').value.trim());
+        importFromUrl($('#url-import-input')?.value.trim());
       });
       $('#url-import-input')?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') importFromUrl(e.target.value.trim());
@@ -3989,13 +4011,13 @@
         $('#ob-icon').innerHTML   = `<i data-lucide="${s.icon}"></i>`;
         $('#ob-title').textContent = s.title;
         $('#ob-desc').textContent  = s.desc;
-        $$('#ob-dots .onboarding-dot').forEach((d, i) => d.classList.toggle('active', i === step));
+        $$('#ob-dots .onboarding-dot')?.forEach((d, i) => d.classList.toggle('active', i === step));
         $('#ob-next').textContent  = step === ONBOARDING_STEPS.length - 1 ? 'Commencer 🚀' : 'Suivant →';
         if (window.lucide) lucide.createIcons();
       }
 
       function _closeOnboarding() {
-        $('#onboarding-overlay').classList.remove('active');
+        $('#onboarding-overlay')?.classList.remove('active');
         localStorage.setItem('speechify_onboarded', '1');
       }
 
@@ -4003,7 +4025,7 @@
         if (!localStorage.getItem('speechify_onboarded')) {
           _obStep = 0;
           _renderOnboardingStep(0);
-          $('#onboarding-overlay').classList.add('active');
+          $('#onboarding-overlay')?.classList.add('active');
         }
       }
 
@@ -4357,7 +4379,7 @@
         }
 
         // Restaurer mode lecture
-        $$('.read-mode-btn').forEach(btn => {
+        $$('.read-mode-btn')?.forEach(btn => {
           btn.classList.toggle('active', btn.dataset.mode === (appState.readMode || 'sentence'));
         });
 
@@ -4370,7 +4392,7 @@
         updateHighlightBtn();
 
         // Restaurer filtre bibliothèque
-        $$('.tab-btn').forEach(btn => {
+        $$('.tab-btn')?.forEach(btn => {
           btn.classList.toggle('active', btn.dataset.filter === appState.currentFilter);
         });
 
