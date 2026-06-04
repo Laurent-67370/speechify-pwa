@@ -1,11 +1,13 @@
 // ─── SpeechifyPro — Service Worker ───────────────────────────────────────────
-const CACHE_NAME    = 'speechify-v3';
-const CACHE_OFFLINE = 'speechify-offline-v3';
+const CACHE_NAME    = 'speechify-v4';
+const CACHE_OFFLINE = 'speechify-offline-v4';
 
 // Ressources à mettre en cache immédiatement à l'installation
 const PRECACHE_URLS = [
   './',
   './index.html',
+  './catalog.js',
+  './functions.js',
   // Polices & icônes (CDN) — mis en cache au premier accès
   'https://unpkg.com/lucide@latest/dist/umd/lucide.js',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js',
