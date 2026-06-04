@@ -3496,49 +3496,59 @@
         statusEl.textContent = '⏳ Lecture du fichier EPUB…';
         try {
           const zip = await JSZip.loadAsync(file);
-          // Trouver le fichier OPF (manifest)
+          // Trouver le fichier OPF via container.xml
           let opfPath = null;
-          const container = zip.file('META-INF/container.xml');
-          if (container) {
-            const containerXml = await container.async('text');
-            const m = containerXml.match(/full-path="([^"]+\.opf)"/);
-            if (m) opfPath = m[1];
+          const containerFile = zip.file('META-INF/container.xml');
+          if (containerFile) {
+            const containerXml = await containerFile.async('text');
+            const reOpf = /full-path="([^"]+\.opf)"/;
+            const mOpf = containerXml.match(reOpf);
+            if (mOpf) opfPath = mOpf[1];
           }
-          if (!opfPath) opfPath = Object.keys(zip.files).find(f => f.endsWith('.opf'));
-          if (!opfPath) throw new Error('Fichier OPF non trouvé dans le EPUB');
+          if (!opfPath) {
+            opfPath = Object.keys(zip.files).find(f => f.endsWith('.opf'));
+          }
+          if (!opfPath) throw new Error('Fichier OPF introuvable');
 
-          // Lire l'OPF pour trouver l'ordre des chapitres
           const opfContent = await zip.file(opfPath).async('text');
           const baseDir = opfPath.includes('/') ? opfPath.substring(0, opfPath.lastIndexOf('/') + 1) : '';
-          
-          // Extraire le titre
-          const titleM = opfContent.match(/<dc:title[^>]*>([^<]+)<\/dc:title>/i);
-          const title = titleM ? titleM[1].trim() : file.name.replace('.epub','');
-          
-          // Trouver les fichiers HTML dans l'ordre du spine
-          const spineItems = [];
+
+          // Titre
+          const reTitleDc = /<dc:title[^>]*>([^<]+)<\/dc:title>/i;
+          const mTitle = opfContent.match(reTitleDc);
+          const title = mTitle ? mTitle[1].trim() : file.name.replace('.epub','');
+
+          // Items et spine
           const itemMap = {};
-          const itemMatches = opfContent.matchAll(/<item[^>]+id="([^"]+)"[^>]+href="([^"]+)"[^>]*media-type="application\/xhtml[^"]*"/gi);
-          for (const m of itemMatches) itemMap[m[1]] = m[2];
-          const spineMatches = opfContent.matchAll(/<itemref[^>]+idref="([^"]+)"/gi);
-          for (const m of spineMatches) if (itemMap[m[1]]) spineItems.push(itemMap[m[1]]);
+          const reItem = /<item\s[^>]*id="([^"]+)"[^>]*href="([^"]+)"[^>]*media-type="application\/xhtml[^"]*"/gi;
+          let mItem;
+          while ((mItem = reItem.exec(opfContent)) !== null) {
+            itemMap[mItem[1]] = mItem[2];
+          }
+          const spineItems = [];
+          const reSpine = /<itemref\s[^>]*idref="([^"]+)"/gi;
+          let mSpine;
+          while ((mSpine = reSpine.exec(opfContent)) !== null) {
+            if (itemMap[mSpine[1]]) spineItems.push(itemMap[mSpine[1]]);
+          }
           if (!spineItems.length) {
-            // Fallback : tous les fichiers xhtml
-            Object.keys(zip.files).forEach(f => { if (f.endsWith('.xhtml') || f.endsWith('.html')) spineItems.push(f.replace(baseDir,'')); });
+            Object.keys(zip.files).forEach(f => {
+              if (f.endsWith('.xhtml') || (f.endsWith('.html') && !f.includes('toc'))) {
+                spineItems.push(f.replace(baseDir, ''));
+              }
+            });
           }
 
-          // Extraire le texte de chaque chapitre
-          statusEl.textContent = `⏳ Extraction de ${spineItems.length} chapitres…`;
+          statusEl.textContent = '⏳ Extraction de ' + spineItems.length + ' chapitres…';
           let fullText = '';
           for (const item of spineItems) {
             const path = baseDir + item;
             const zipFile = zip.file(path) || zip.file(item);
             if (!zipFile) continue;
             const html = await zipFile.async('text');
-            // Extraire le texte brut du HTML
             const text = html
-              .replace(/<style[^>]*>.*?<\/style>/gsi, '')
-              .replace(/<script[^>]*>.*?<\/script>/gsi, '')
+              .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+              .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
               .replace(/<[^>]+>/g, ' ')
               .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
               .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
@@ -3546,18 +3556,18 @@
               .replace(/\s{3,}/g, '\n\n').trim();
             if (text.length > 50) fullText += text + '\n\n';
           }
-          
-          if (!fullText || fullText.length < 100) throw new Error('Aucun texte extrait du EPUB');
-          
+
+          if (!fullText || fullText.length < 100) throw new Error('Aucun texte extrait');
+
           const wordCount = fullText.split(/\s+/).length;
-          statusEl.textContent = `✅ ${wordCount} mots — « ${title.substring(0,40)} »`;
+          statusEl.textContent = '✅ ' + wordCount + ' mots — « ' + title.substring(0,40) + ' »';
           await insertDocToLibrary(title, fullText, 'epub', 'EPUB');
           setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
           navigate('library');
-          toast('📚 "' + title + '" importé avec succès !');
+          toast('📚 "' + title + '" importé !');
         } catch(e) {
           statusEl.textContent = '❌ Erreur EPUB : ' + e.message;
-          console.error('EPUB import error:', e);
+          console.error('EPUB import:', e);
         }
       }
 
