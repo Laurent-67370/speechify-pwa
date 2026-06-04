@@ -1183,7 +1183,7 @@
           <p style="font-size:var(--text-xs);color:var(--color-text-faint);">ou utilisez les boutons ci-dessous</p>
         </div>
 
-        <!-- Grille import 2×2 -->
+        <!-- Grille import 2×3 -->
         <div class="card" style="padding:var(--space-4);">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
             <!-- PDF -->
@@ -1198,6 +1198,12 @@
               <span>TXT / MD</span>
               <input type="file" id="file-loader-txt" accept=".txt,.md,.html" tabindex="-1">
             </label>
+            <!-- EPUB -->
+            <label class="upload-label" id="lbl-epub" style="border-color:rgba(39,174,96,.4);">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+              <span>📚 EPUB</span>
+              <input type="file" id="epub-file-input" accept=".epub" tabindex="-1">
+            </label>
             <!-- OCR IMAGE -->
             <label class="upload-label" id="lbl-ocr" style="border-color:rgba(109,108,255,.4);">
               <i data-lucide="scan-text"></i>
@@ -1205,9 +1211,9 @@
               <input type="file" id="file-loader-ocr" accept="image/*" tabindex="-1">
             </label>
             <!-- DÉMO -->
-            <button class="demo-btn" id="load-demo-kindle">
+            <button class="demo-btn" id="load-demo-kindle" style="grid-column:1/-1;">
               <i data-lucide="book-open"></i>
-              <span>Démo</span>
+              <span>Charger un document démo</span>
             </button>
           </div>
 
@@ -2581,12 +2587,11 @@
       });
 
       // Import EPUB
-      $('#epub-drop-zone')?.addEventListener('click', () => $('#epub-file-input')?.click());
-      $('#epub-file-input')?.addEventListener('change', async (e) => {
+      $('#epub-file-input').addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
         if (typeof JSZip === 'undefined') {
-          toast('⚠️ JSZip non chargé, réessaie dans 2 secondes');
+          toast('⚠️ JSZip non chargé, réessaie dans 2s');
           return;
         }
         await importEpub(file);
