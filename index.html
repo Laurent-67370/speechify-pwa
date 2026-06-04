@@ -72,12 +72,12 @@
     }
     .nav-item {
       flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: .3rem; padding: .6rem var(--space-2) .7rem; font-size: 10px; font-weight: 700;
+      gap: .2rem; padding: .5rem .1rem .6rem; font-size: 9px; font-weight: 700;
       color: var(--color-text-muted); cursor: pointer; border: none; background: none;
       transition: 180ms; border-top: 2px solid transparent;
     }
     .nav-item.active { color: var(--color-primary); border-top-color: var(--color-primary); background: var(--color-primary-soft); }
-    .nav-item svg { width: 22px; height: 22px; }
+    .nav-item svg { width: 20px; height: 20px; }
     .page-header { margin-bottom: var(--space-5); }
     .page-title { font-size: var(--text-xl); font-weight: 900; }
     .page-subtitle { color: var(--color-text-muted); margin-top: var(--space-1); font-size: var(--text-sm); }
@@ -1283,6 +1283,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
         Lire
       </button>
+      <button class="nav-item" data-route-nav="library">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+        Biblio
+      </button>
       <button class="nav-item" data-route-nav="library-store">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
         Librairie
@@ -1290,10 +1294,6 @@
       <button class="nav-item" data-route-nav="import">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Importer
-      </button>
-      <button class="nav-item" data-route-nav="stats">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-        Stats
       </button>
     </nav>
   </div><!-- .app-shell -->
