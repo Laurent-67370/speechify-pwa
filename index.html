@@ -222,7 +222,7 @@
       margin-top: var(--space-2); display: none; }
     .summary-point.expanded .point-detail { display: block; }
     /* --- IMPORT ZONE CORRIGÉE --- */
-    .source-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); padding: var(--space-4); }
+    
     .upload-label {
       min-height: 90px; border-radius: 1rem; background: var(--color-surface-2); color: var(--color-text);
       display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .6rem;
@@ -482,7 +482,6 @@
     .onboarding-dot.active { background: var(--color-primary); width: 24px; border-radius: 4px; }
     .onboarding-actions { display: flex; gap: var(--space-3); }
 
-
     /* --- LIBRAIRIE --- */
     .lib-hero{background:linear-gradient(135deg,#1a1060,#6d6cff);border-radius:var(--radius-xl);padding:var(--space-5);margin-bottom:var(--space-4);position:relative;overflow:hidden}
     .lib-hero::after{content:'📚';position:absolute;right:var(--space-4);top:50%;transform:translateY(-50%);font-size:4rem;opacity:.2}
@@ -495,16 +494,11 @@
     .lib-cat-btn.active{background:var(--color-primary);color:#fff;border-color:var(--color-primary)}
     .lib-section-title{font-size:var(--text-sm);font-weight:800;margin-bottom:var(--space-3)}
     .lib-scroll{display:flex;gap:var(--space-3);overflow-x:auto;padding-bottom:var(--space-2);scrollbar-width:none;margin-bottom:var(--space-5)}
-    .lib-book-card{flex-shrink:0;width:110px;cursor:pointer}
-    .lib-book-cover{width:110px;height:155px;border-radius:var(--radius-md);box-shadow:0 4px 12px rgba(0,0,0,.25);margin-bottom:var(--space-2);display:flex;align-items:center;justify-content:center;flex-direction:column;padding:var(--space-2);transition:transform 180ms}
-    .lib-book-card:hover .lib-book-cover{transform:translateY(-3px)}
-    .lib-book-emoji{font-size:2.5rem;margin-bottom:4px}
-    .lib-book-cover-title{font-size:9px;font-weight:800;color:#fff;line-height:1.3;text-align:center}
-    .lib-book-title{font-size:10px;font-weight:700;line-height:1.3;margin-bottom:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-    .lib-book-author{font-size:9px;color:var(--color-text-faint)}
-    .lib-list-item{display:flex;gap:var(--space-3);padding:var(--space-3);border-radius:var(--radius-lg);background:var(--color-surface-2);margin-bottom:var(--space-2);cursor:pointer;border:1px solid var(--color-border)}
+    
+    
+
     .lib-list-cover{width:48px;height:68px;border-radius:var(--radius-sm);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.8rem}
-    .lib-list-info{flex:1;min-width:0}
+    
     .lib-list-title{font-size:var(--text-sm);font-weight:700;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .lib-list-author{font-size:var(--text-xs);color:var(--color-text-muted)}
     .lib-format-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:99px;border:1px solid var(--color-border);color:var(--color-text-muted)}
@@ -2301,14 +2295,14 @@
         if (document.hidden) {
           // Page masquée (appel, lock screen) — on note le chunk courant
           _pausedChunkOnHide = _chunkIndex;
-          console.log('[VisChange] hidden, chunk=', _pausedChunkOnHide);
+          // console.log('[VisChange] hidden, chunk=', _pausedChunkOnHide);
         } else {
           // Page redevient visible
           const synth = window.speechSynthesis;
           setTimeout(() => {
             if (!appState.playing) return;
             if (!synth.speaking && !synth.pending) {
-              console.log('[VisChange] visible, synth silent → reprise chunk', _pausedChunkOnHide);
+              // console.log('[VisChange] visible, synth silent → reprise chunk', _pausedChunkOnHide);
               _stopWatchdog();
               window.speechSynthesis.cancel();
               setTimeout(() => _speakChunk(_pausedChunkOnHide >= 0 ? _pausedChunkOnHide : _chunkIndex), 300);
@@ -2425,25 +2419,41 @@
       }
 
       let _savePositionTimer = null;
-      function autoHighlightAndCenter(index) {
-        const box   = $('#reader-text');
+      // Cache span Map pour éviter querySelectorAll à chaque mot lu
+      let _spanMap = null;
+
+      function _buildSpanMap() {
         const spans = $$('#reader-text span[id^="word-"]');
-        spans.forEach(s => {
+        _spanMap = new Map();
+        spans?.forEach(s => {
           const id = parseInt(s.id.replace('word-', ''));
-          if (!appState.highlight) {
-            s.classList.remove('word-highlight', 'word-read');
-            return;
-          }
-          if (id < index) {
-            s.classList.remove('word-highlight');
-            s.classList.add('word-read');
-          } else if (id === index) {
-            s.classList.add('word-highlight');
-            s.classList.remove('word-read');
-          } else {
-            s.classList.remove('word-highlight', 'word-read');
-          }
+          if (!isNaN(id)) _spanMap.set(id, s);
         });
+      }
+
+      function _invalidateSpanMap() { _spanMap = null; }
+
+      function autoHighlightAndCenter(index) {
+        const box = $('#reader-text');
+        // Utiliser le cache spanMap (évite querySelectorAll sur 5000+ nœuds)
+        if (!_spanMap) _buildSpanMap();
+        if (_spanMap) {
+          _spanMap.forEach((s, id) => {
+            if (!appState.highlight) {
+              s.classList.remove('word-highlight', 'word-read');
+              return;
+            }
+            if (id < index) {
+              s.classList.remove('word-highlight');
+              s.classList.add('word-read');
+            } else if (id === index) {
+              s.classList.add('word-highlight');
+              s.classList.remove('word-read');
+            } else {
+              s.classList.remove('word-highlight', 'word-read');
+            }
+          });
+        }
 
         // Mettre à jour la barre de progression en temps réel
         if (appState.wordsArray.length > 0) {
@@ -2525,9 +2535,12 @@
           renderTextInReader(wrap);
         });
 
-        // Listeners de clic sur les mots (pour lancer la lecture depuis un mot)
-        box.querySelectorAll('span[id^="word-"]').forEach(span => {
-          span.addEventListener('click', () => {
+        // Delegation sur #reader-text — un seul listener pour tous les mots (5000+ spans)
+        if (box && !box._wordClickDelegated) {
+          box._wordClickDelegated = true;
+          box.addEventListener('click', (e) => {
+            const span = e.target.closest('span[id^="word-"]');
+            if (!span) return;
             const idx = parseInt(span.id.replace('word-', ''));
             if (isNaN(idx)) return;
             appState.currentWordIndex = idx;
@@ -2538,7 +2551,7 @@
               startSpeechEngine();
             }
           });
-        });
+        }
 
         // Centrer sur le mot courant
         if (cur > 0) autoHighlightAndCenter(cur);
@@ -2794,36 +2807,46 @@
         }
 
         // Events cartes
-        docs.forEach((d, i) => {
-          // Clic sur la carte → sélectionner le doc
-          $(`#ccard-${d.id}`)?.addEventListener('click', (e) => {
-            if (e.target.closest('button')) return; // laisser les boutons gérer
-            _selectCarouselDoc(d, i);
-          });
-          // Bouton Écouter
-          $(`#cplay-${d.id}`)?.addEventListener('click', () => {
-            _selectCarouselDoc(d, i);
-            setTimeout(() => {
-              if (!appState.playing) {
-                $('#play-toggle').disabled = true;
-                startSpeechEngine();
-              } else {
-                stopSpeechEngine();
+        // Delegation unique sur le track (remplace 4 addEventListener par doc)
+        if (!track._delegated) {
+          track._delegated = true;
+          track.addEventListener('click', (e) => {
+            const card = e.target.closest('[id^="ccard-"]');
+            const play = e.target.closest('[id^="cplay-"]');
+            const read = e.target.closest('[id^="cread-"]');
+            if (card && !e.target.closest('button')) {
+              const id = parseInt(card.id.replace('ccard-', ''));
+              const idx = appState.docs.findIndex(d => d.id === id);
+              if (idx >= 0) _selectCarouselDoc(appState.docs[idx], idx);
+            } else if (play) {
+              const id = parseInt(play.id.replace('cplay-', ''));
+              const idx = appState.docs.findIndex(d => d.id === id);
+              if (idx >= 0) {
+                _selectCarouselDoc(appState.docs[idx], idx);
+                setTimeout(() => {
+                  if (!appState.playing) {
+                    $('#play-toggle').disabled = true;
+                    startSpeechEngine();
+                  } else { stopSpeechEngine(); }
+                }, 80);
               }
-            }, 80);
+            } else if (read) {
+              const id = parseInt(read.id.replace('cread-', ''));
+              const idx = appState.docs.findIndex(d => d.id === id);
+              if (idx >= 0) { _selectCarouselDoc(appState.docs[idx], idx); navigate('reader'); }
+            }
           });
-          // Bouton Lire (aller page Reader)
-          $(`#cread-${d.id}`)?.addEventListener('click', () => {
-            _selectCarouselDoc(d, i);
-            navigate('reader');
-          });
-          // Dot
-          $(`#cdot-${i}`)?.addEventListener('click', () => {
+          // Delegation dots
+          const dotsEl = $('#carousel-dots');
+          if (dotsEl) dotsEl.addEventListener('click', (e) => {
+            const dot = e.target.closest('[id^="cdot-"]');
+            if (!dot) return;
+            const i = parseInt(dot.id.replace('cdot-', ''));
             _carouselIndex = i;
             track.children[i]?.scrollIntoView({ behavior: 'smooth', inline: 'center' });
-            renderCarousel();
+            $$('.carousel-dot')?.forEach((d, j) => d.classList.toggle('active', j === i));
           });
-        });
+        }
 
         if (window.lucide) lucide.createIcons();
       }
@@ -3040,26 +3063,33 @@
           return;
         }
         list.innerHTML = bks.map((bk, i) => `
-          <div class="bookmark-item" id="bk-item-${i}">
+          <div class="bookmark-item" id="bk-item-${i}" data-bk-idx="${i}">
             <i data-lucide="bookmark" class="bookmark-icon" style="width:16px;height:16px;"></i>
             <span class="bookmark-text">${bk.preview}</span>
             <span class="bookmark-pct">${bk.pct}%</span>
-            <button class="bookmark-del" id="bk-del-${i}" title="Supprimer">✕</button>
+            <button class="bookmark-del" data-bk-del="${i}" title="Supprimer">✕</button>
           </div>`).join('');
-        bks.forEach((bk, i) => {
-          $(`#bk-item-${i}`)?.addEventListener('click', (e) => {
-            if (e.target.closest('.bookmark-del')) return;
-            appState.currentWordIndex = bk.wordIndex;
-            if (appState.playing) { stopSpeechEngine(); setTimeout(() => startSpeechEngine(), 80); }
-            else autoHighlightAndCenter(bk.wordIndex);
-            toast(`📍 Reprise au marque-page ${bk.pct}%`);
+        // Delegation unique — pas de rebinding à chaque render
+        if (!list._delegated) {
+          list._delegated = true;
+          list.addEventListener('click', (e) => {
+            const delBtn = e.target.closest('[data-bk-del]');
+            const item   = e.target.closest('[data-bk-idx]');
+            if (!item) return;
+            const i = parseInt(item.dataset.bkIdx);
+            const bks2 = _getBookmarks(appState.currentDocId);
+            if (delBtn) {
+              const j = parseInt(delBtn.dataset.bkDel);
+              _saveBookmarks(appState.currentDocId, bks2.filter((_, k) => k !== j));
+              renderBookmarks();
+            } else if (bks2[i]) {
+              appState.currentWordIndex = bks2[i].wordIndex;
+              if (appState.playing) { stopSpeechEngine(); setTimeout(() => startSpeechEngine(), 80); }
+              else autoHighlightAndCenter(bks2[i].wordIndex);
+              toast(`📍 Reprise au marque-page ${bks2[i].pct}%`);
+            }
           });
-          $(`#bk-del-${i}`)?.addEventListener('click', () => {
-            const updated = _getBookmarks(docId).filter((_, j) => j !== i);
-            _saveBookmarks(docId, updated);
-            renderBookmarks();
-          });
-        });
+        }
         if (window.lucide) lucide.createIcons();
       }
 
@@ -3212,7 +3242,7 @@
       // Pause entre paragraphes
       $('#pause-range')?.addEventListener('input', (e) => {
         appState.pauseMs = parseInt(e.target.value);
-        $('#pause-value').textContent = (appState.pauseMs / 1000).toFixed(1) + 's';
+        $('#pause-value').textContent = ((appState.pauseMs ?? 400) / 1000).toFixed(1) + 's';
         savePrefs();
       });
 
@@ -3817,7 +3847,7 @@
               console.warn(`[${proxy.name}] Réponse invalide :`, (html||'').substring(0,60));
               continue;
             }
-            console.log(`[${proxy.name}] ✅ ${html.length} chars`);
+            // console.log(`[${proxy.name}] ✅ ${html.length} chars`);
             return html;
           } catch(e) {
             console.warn(`[${proxy.name}] Erreur :`, e.message);
