@@ -1883,6 +1883,14 @@
         utt.onend = () => {
           if (!appState.playing) return;
           _clearWordTimers();
+          _stopWatchdog();
+          // ── #7 Sauvegarde position à chaque chunk ──
+          const _docSnap = appState.docs.find(d => d.id === appState.currentDocId);
+          if (_docSnap && appState.wordsArray.length) {
+            _docSnap.wordIndex = appState.currentWordIndex;
+            _docSnap.progress  = Math.round((appState.currentWordIndex / appState.wordsArray.length) * 100);
+            saveDoc(_docSnap);
+          }
           // Pause entre paragraphes si le chunk se termine par un saut de ligne
           const pauseDelay = (chunk.text.trimEnd().endsWith('\n') || chunk.endsWithParagraph)
             ? (appState.pauseMs || 0) + 50
@@ -1890,20 +1898,131 @@
           setTimeout(() => _speakChunk(chunkIdx + 1), pauseDelay);
         };
 
+        // Compteur de retry par chunk
+        const _maxRetry = 2;
+        utt._retryCount = utt._retryCount || 0;
+
         utt.onerror = (e) => {
           if (e.error === 'interrupted' || e.error === 'canceled') return;
           _clearWordTimers();
-          if (e.error === 'synthesis-failed' && chunkIdx + 1 < _chunks.length) {
-            toast("⏭ Segment suivant…");
-            setTimeout(() => _speakChunk(chunkIdx + 1), 80);
+          _stopWatchdog();
+          if (e.error === 'synthesis-failed') {
+            if (utt._retryCount < _maxRetry) {
+              utt._retryCount++;
+              const delay = utt._retryCount * 300;
+              console.warn(`[TTS] synthesis-failed chunk ${chunkIdx}, retry ${utt._retryCount}/${_maxRetry} in ${delay}ms`);
+              setTimeout(() => _speakChunkRetry(chunkIdx, utt._retryCount), delay);
+            } else if (chunkIdx + 1 < _chunks.length) {
+              toast('⏭ Segment ignoré, reprise…');
+              setTimeout(() => _speakChunk(chunkIdx + 1), 150);
+            } else {
+              stopSpeechEngine();
+              toast('⚠️ Erreur vocale : ' + (e.error || 'inconnue'));
+            }
+          } else if (e.error === 'audio-busy') {
+            // Micro ou appel en cours → pause + reprise auto dans 2s
+            toast('📞 Audio occupé, reprise auto…');
+            setTimeout(() => {
+              if (appState.playing) _speakChunk(chunkIdx);
+            }, 2000);
           } else {
             stopSpeechEngine();
-            toast("⚠️ Erreur vocale : " + (e.error || 'inconnue'));
+            toast('⚠️ Erreur vocale : ' + (e.error || 'inconnue'));
           }
         };
 
+        _startWatchdog(chunkIdx);
         window.speechSynthesis.speak(utt);
       }
+
+      // ─── WATCHDOG + RETRY (#2 audio recovery) ────────────────────────
+      let _watchdogTimer = null;
+      let _watchdogChunk = -1;
+
+      function _startWatchdog(chunkIdx) {
+        _stopWatchdog();
+        _watchdogChunk = chunkIdx;
+        // Vérifie toutes les 3.5s si la synth est bien active
+        _watchdogTimer = setInterval(() => {
+          if (!appState.playing) { _stopWatchdog(); return; }
+          const synth = window.speechSynthesis;
+          if (!synth.speaking && !synth.pending) {
+            // La synth s'est arrêtée silencieusement → relancer le chunk
+            console.warn('[Watchdog] synth stopped silently on chunk', _watchdogChunk, '— restarting');
+            _stopWatchdog();
+            if (appState.playing) {
+              window.speechSynthesis.cancel();
+              setTimeout(() => _speakChunk(_watchdogChunk), 200);
+            }
+          }
+        }, 3500);
+      }
+
+      function _stopWatchdog() {
+        if (_watchdogTimer) { clearInterval(_watchdogTimer); _watchdogTimer = null; }
+      }
+
+      // Retry d'un chunk avec la même position de retryCount
+      function _speakChunkRetry(chunkIdx, retryCount) {
+        if (!appState.playing) return;
+        window.speechSynthesis.cancel();
+        setTimeout(() => {
+          if (!appState.playing) return;
+          const chunk = _chunks[chunkIdx];
+          if (!chunk) return;
+          const utt = new SpeechSynthesisUtterance(chunk.text);
+          utt._retryCount = retryCount;
+          if (!synthVoices.length) synthVoices = window.speechSynthesis.getVoices();
+          const voice = synthVoices.find(v => v.name === appState.selectedVoiceName);
+          if (voice) utt.voice = voice;
+          utt.rate  = appState.speed;
+          utt.pitch = appState.pitch || 1.0;
+          utt.lang  = voice ? voice.lang : 'fr-FR';
+          _scheduleHighlights(chunk);
+          utt.onend = () => {
+            if (!appState.playing) return;
+            _clearWordTimers(); _stopWatchdog();
+            const pauseDelay = (chunk.text.trimEnd().endsWith('\n') || chunk.endsWithParagraph)
+              ? (appState.pauseMs || 0) + 50 : 50;
+            setTimeout(() => _speakChunk(chunkIdx + 1), pauseDelay);
+          };
+          utt.onerror = (e) => {
+            if (e.error === 'interrupted' || e.error === 'canceled') return;
+            _clearWordTimers(); _stopWatchdog();
+            if (retryCount < 2) {
+              setTimeout(() => _speakChunkRetry(chunkIdx, retryCount + 1), 600);
+            } else {
+              toast('⏭ Chunk ignoré après 2 retries');
+              setTimeout(() => _speakChunk(chunkIdx + 1), 150);
+            }
+          };
+          _startWatchdog(chunkIdx);
+          window.speechSynthesis.speak(utt);
+        }, 250);
+      }
+
+      // ─── #6 REPRISE APRÈS APPEL / VISIBILITYCHANGE ───────────────────
+      document.addEventListener('visibilitychange', () => {
+        if (!appState.playing) return;
+        if (document.hidden) {
+          // Page masquée (appel, lock screen) — on note le chunk courant
+          _pausedChunkOnHide = _chunkIndex;
+          console.log('[VisChange] hidden, chunk=', _pausedChunkOnHide);
+        } else {
+          // Page redevient visible
+          const synth = window.speechSynthesis;
+          setTimeout(() => {
+            if (!appState.playing) return;
+            if (!synth.speaking && !synth.pending) {
+              console.log('[VisChange] visible, synth silent → reprise chunk', _pausedChunkOnHide);
+              _stopWatchdog();
+              window.speechSynthesis.cancel();
+              setTimeout(() => _speakChunk(_pausedChunkOnHide >= 0 ? _pausedChunkOnHide : _chunkIndex), 300);
+            }
+          }, 800);
+        }
+      });
+      let _pausedChunkOnHide = -1;
 
       function startSpeechEngine() {
         const doc = appState.docs.find(d => d.id === appState.currentDocId);
@@ -2934,6 +3053,107 @@
         if (window.lucide) lucide.createIcons();
       }
 
+      // ─── #9 SWIPE GESTURES EN MODE ZEN ───────────────────────────────
+      (function _initZenSwipe() {
+        const overlay = document.getElementById('zen-overlay');
+        if (!overlay) return;
+        let _tx = 0, _ty = 0, _t0 = 0;
+        const SWIPE_MIN = 50; // px minimum
+        const SWIPE_MAX_T = 500; // ms max
+
+        overlay.addEventListener('touchstart', e => {
+          const t = e.changedTouches[0];
+          _tx = t.clientX; _ty = t.clientY; _t0 = Date.now();
+        }, { passive: true });
+
+        overlay.addEventListener('touchend', e => {
+          const t = e.changedTouches[0];
+          const dx = t.clientX - _tx;
+          const dy = t.clientY - _ty;
+          const dt = Date.now() - _t0;
+          if (dt > SWIPE_MAX_T) return;
+
+          const adx = Math.abs(dx), ady = Math.abs(dy);
+
+          // Swipe horizontal (gauche/droite) — skip ±15s
+          if (adx > SWIPE_MIN && adx > ady * 1.5) {
+            e.preventDefault();
+            if (dx < 0) {
+              // Swipe gauche → avancer 15s
+              const skip = Math.round(appState.speed * 15 * 2.5);
+              const newIdx = Math.min(appState.wordsArray.length - 1, appState.currentWordIndex + skip);
+              appState.currentWordIndex = newIdx;
+              if (appState.playing) {
+                window.speechSynthesis.cancel();
+                _stopWatchdog();
+                startSpeechEngine();
+              }
+              _zenHighlight(newIdx);
+              _showZenSwipeHint('⏩ +15s');
+            } else {
+              // Swipe droite → reculer 15s
+              const skip = Math.round(appState.speed * 15 * 2.5);
+              const newIdx = Math.max(0, appState.currentWordIndex - skip);
+              appState.currentWordIndex = newIdx;
+              if (appState.playing) {
+                window.speechSynthesis.cancel();
+                _stopWatchdog();
+                startSpeechEngine();
+              }
+              _zenHighlight(newIdx);
+              _showZenSwipeHint('⏪ −15s');
+            }
+            return;
+          }
+
+          // Swipe bas → quitter Zen
+          if (ady > SWIPE_MIN && dy > 0 && ady > adx * 1.5) {
+            e.preventDefault();
+            closeZenMode();
+            _showZenSwipeHint('✕ Zen fermé');
+            return;
+          }
+
+          // Tap (petit déplacement) → play/pause
+          if (adx < 15 && ady < 15) {
+            const target = e.target;
+            // Ne pas intercepter les boutons zen
+            if (target.closest('#zen-controls, #zen-close')) return;
+            e.preventDefault();
+            if (appState.playing) {
+              window.speechSynthesis.cancel();
+              _stopWatchdog();
+              appState.playing = false;
+              updateControlsUI();
+              _zenUpdatePlayBtn();
+            } else {
+              appState.playing = true;
+              startSpeechEngine();
+              _zenUpdatePlayBtn();
+            }
+          }
+        }, { passive: false });
+      })();
+
+      function _showZenSwipeHint(msg) {
+        let hint = document.getElementById('zen-swipe-hint');
+        if (!hint) {
+          hint = document.createElement('div');
+          hint.id = 'zen-swipe-hint';
+          hint.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);' +
+            'background:rgba(255,255,255,.18);backdrop-filter:blur(8px);border-radius:2rem;' +
+            'padding:.6rem 1.4rem;font-size:1.1rem;font-weight:600;color:#fff;pointer-events:none;' +
+            'z-index:500;transition:opacity .4s;';
+          document.getElementById('zen-overlay').appendChild(hint);
+        }
+        hint.textContent = msg;
+        hint.style.opacity = '1';
+        clearTimeout(hint._t);
+        hint._t = setTimeout(() => { hint.style.opacity = '0'; }, 800);
+      }
+
+
+
       // Bouton toolbar → ouvre/ferme le zen
       $('#focus-toggle').addEventListener('click', () => {
         appState.isFocusMode ? closeZenMode() : openZenMode();
@@ -3627,8 +3847,22 @@
           }
 
           statusEl.textContent = '⏳ Extraction de ' + spineItems.length + ' chapitres…';
+
+          // ── #4 Barre de progression EPUB ──
+          const _epubBar = document.createElement('div');
+          _epubBar.style.cssText = 'margin:8px 0 4px;height:6px;border-radius:3px;background:var(--color-border,#333);overflow:hidden;';
+          const _epubFill = document.createElement('div');
+          _epubFill.style.cssText = 'height:100%;width:0%;background:var(--color-primary,#7c6fff);border-radius:3px;transition:width .2s;';
+          _epubBar.appendChild(_epubFill);
+          if (statusEl.parentNode) statusEl.parentNode.insertBefore(_epubBar, statusEl.nextSibling);
+
           let fullText = '';
-          for (const item of spineItems) {
+          for (let _ei = 0; _ei < spineItems.length; _ei++) {
+            const item = spineItems[_ei];
+            // Mise à jour barre %
+            _epubFill.style.width = Math.round((_ei / spineItems.length) * 100) + '%';
+            statusEl.textContent = '⏳ Chapitre ' + (_ei + 1) + ' / ' + spineItems.length + '…';
+
             const path = baseDir + item;
             const zipFile = zip.file(path) || zip.file(item);
             if (!zipFile) continue;
@@ -3643,6 +3877,8 @@
               .replace(/\s{3,}/g, '\n\n').trim();
             if (text.length > 50) fullText += text + '\n\n';
           }
+          _epubFill.style.width = '100%';
+          setTimeout(() => _epubBar.remove(), 1500);
 
           if (!fullText || fullText.length < 100) throw new Error('Aucun texte extrait');
 
