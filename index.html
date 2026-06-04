@@ -608,7 +608,70 @@
       display: flex; justify-content: space-between; }
 
     
-    /* --- COMPTEUR QUOTIDIEN --- */
+    /* --- LIBRAIRIE --- */
+    .lib-hero { background: linear-gradient(135deg, #1a1060 0%, #6d6cff 100%); border-radius: var(--radius-xl); padding: var(--space-5); margin-bottom: var(--space-4); position: relative; overflow: hidden; }
+    .lib-hero::after { content: '📚'; position: absolute; right: var(--space-4); top: 50%; transform: translateY(-50%); font-size: 4rem; opacity: .2; }
+    .lib-hero-title { font-size: var(--text-lg); font-weight: 900; color: #fff; margin-bottom: 4px; }
+    .lib-hero-sub { font-size: var(--text-xs); color: rgba(255,255,255,.7); }
+    .lib-search-row { display: flex; gap: var(--space-2); margin-bottom: var(--space-4); }
+    .lib-search-input { flex: 1; background: var(--color-surface-2); border: 1.5px solid var(--color-border); border-radius: var(--radius-full); padding: .6rem var(--space-4); color: var(--color-text); font-family: var(--font-body); font-size: var(--text-sm); }
+    .lib-search-input:focus { outline: none; border-color: var(--color-primary); }
+    .lib-cats { display: flex; gap: var(--space-2); overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; margin-bottom: var(--space-4); }
+    .lib-cats::-webkit-scrollbar { display: none; }
+    .lib-cat-btn { flex-shrink: 0; padding: .4rem var(--space-3); border-radius: var(--radius-full); border: 1.5px solid var(--color-border); background: var(--color-surface-2); color: var(--color-text-muted); font-size: var(--text-xs); font-weight: 700; cursor: pointer; transition: 180ms; }
+    .lib-cat-btn.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+    .lib-section-title { font-size: var(--text-sm); font-weight: 800; margin-bottom: var(--space-3); display: flex; align-items: center; justify-content: space-between; }
+    .lib-section-title span { font-size: var(--text-xs); color: var(--color-text-muted); font-weight: 400; }
+    .lib-scroll { display: flex; gap: var(--space-3); overflow-x: auto; padding-bottom: var(--space-2); scrollbar-width: none; margin-bottom: var(--space-5); }
+    .lib-scroll::-webkit-scrollbar { display: none; }
+    .lib-book-card { flex-shrink: 0; width: 110px; cursor: pointer; }
+    .lib-book-cover { width: 110px; height: 155px; border-radius: var(--radius-md); overflow: hidden; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,.25); margin-bottom: var(--space-2); transition: transform 180ms; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: var(--space-2); }
+    .lib-book-card:hover .lib-book-cover { transform: translateY(-3px); }
+    .lib-book-emoji { font-size: 2.5rem; margin-bottom: 4px; }
+    .lib-book-cover-title { font-size: 9px; font-weight: 800; color: #fff; line-height: 1.3; text-align: center; }
+    .lib-book-title { font-size: 10px; font-weight: 700; line-height: 1.3; margin-bottom: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .lib-book-author { font-size: 9px; color: var(--color-text-faint); }
+    .lib-list-item { display: flex; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-lg); background: var(--color-surface-2); margin-bottom: var(--space-2); cursor: pointer; transition: 180ms; border: 1px solid var(--color-border); }
+    .lib-list-item:hover { border-color: var(--color-primary); }
+    .lib-list-cover { width: 48px; height: 68px; border-radius: var(--radius-sm); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; }
+    .lib-list-info { flex: 1; min-width: 0; }
+    .lib-list-title { font-size: var(--text-sm); font-weight: 700; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lib-list-author { font-size: var(--text-xs); color: var(--color-text-muted); margin-bottom: 5px; }
+    .lib-list-badges { display: flex; gap: 4px; flex-wrap: wrap; }
+    .lib-format-badge { font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 99px; border: 1px solid var(--color-border); color: var(--color-text-muted); }
+    .lib-format-badge.pdf { border-color: #e74c3c; color: #e74c3c; }
+    .lib-format-badge.epub { border-color: #27ae60; color: #27ae60; }
+    .lib-format-badge.txt { border-color: var(--color-primary); color: var(--color-primary); }
+    #lib-modal { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.7); display: none; align-items: flex-end; padding: var(--space-4); }
+    #lib-modal.active { display: flex; animation: zenIn .25s ease; }
+    .lib-modal-box { width: 100%; max-width: 480px; margin: 0 auto; background: var(--color-surface); border-radius: var(--radius-xl); padding: var(--space-5); max-height: 80vh; overflow-y: auto; }
+    .lib-modal-header { display: flex; gap: var(--space-4); margin-bottom: var(--space-4); }
+    .lib-modal-cover { width: 80px; height: 112px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 3rem; flex-shrink: 0; }
+    .lib-modal-title { font-size: var(--text-base); font-weight: 900; margin-bottom: 4px; }
+    .lib-modal-author { font-size: var(--text-xs); color: var(--color-text-muted); margin-bottom: var(--space-2); }
+    .lib-modal-desc { font-size: var(--text-xs); color: var(--color-text-muted); line-height: 1.6; margin-bottom: var(--space-4); }
+    .lib-modal-actions { display: flex; flex-direction: column; gap: var(--space-2); }
+    .daily-goal {
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius-xl); padding: var(--space-4);
+      margin-bottom: var(--space-4);
+    }
+    .daily-goal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: var(--space-3);
+    }
+    .daily-goal-title { font-weight: 700; font-size: var(--text-sm); }
+    .daily-goal-pct { font-weight: 900; font-size: var(--text-lg); color: var(--color-primary); }
+    .daily-goal-bar { height: 8px; background: var(--color-border); border-radius: 4px; overflow: hidden; }
+    .daily-goal-fill {
+      height: 100%; border-radius: 4px;
+      background: linear-gradient(90deg, var(--color-primary), #a78bfa);
+      transition: width .6s cubic-bezier(.16,1,.3,1);
+    }
+    .daily-goal-meta { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: var(--space-2);
+      display: flex; justify-content: space-between; }
+
+        /* --- COMPTEUR QUOTIDIEN --- */
     .daily-goal {
       background: var(--color-surface); border: 1px solid var(--color-border);
       border-radius: var(--radius-xl); padding: var(--space-4);
@@ -912,6 +975,56 @@
           <button class="tab-btn" data-filter="ocr">OCR</button>
         </div>
         <div id="library-list"></div>
+      </div>
+
+      <!-- PAGE LIBRAIRIE -->
+      <div class="page" data-route="library-store">
+        <div class="lib-hero">
+          <div class="lib-hero-title">Librairie gratuite</div>
+          <div class="lib-hero-sub">Classiques du domaine public — PDF &amp; EPUB</div>
+        </div>
+
+        <!-- Recherche -->
+        <div class="lib-search-row">
+          <input type="search" class="lib-search-input" id="lib-search" placeholder="🔍 Chercher un titre, auteur…">
+          <button class="btn btn-primary" id="lib-search-btn" style="flex-shrink:0;padding:.6rem var(--space-4);">OK</button>
+        </div>
+
+        <!-- Catégories -->
+        <div class="lib-cats" id="lib-cats">
+          <button class="lib-cat-btn active" data-cat="all">Tout</button>
+          <button class="lib-cat-btn" data-cat="roman">Romans</button>
+          <button class="lib-cat-btn" data-cat="philo">Philosophie</button>
+          <button class="lib-cat-btn" data-cat="science">Sciences</button>
+          <button class="lib-cat-btn" data-cat="histoire">Histoire</button>
+          <button class="lib-cat-btn" data-cat="poesie">Poésie</button>
+          <button class="lib-cat-btn" data-cat="fr">🇫🇷 Français</button>
+        </div>
+
+        <!-- Résultats recherche (caché par défaut) -->
+        <div id="lib-search-results" style="display:none;">
+          <div class="lib-section-title">Résultats <span id="lib-result-count"></span></div>
+          <div id="lib-results-list"></div>
+        </div>
+
+        <!-- Sections par défaut -->
+        <div id="lib-default-sections">
+          <!-- Coups de cœur -->
+          <div class="lib-section-title">⭐ Coups de cœur <span>domaine public</span></div>
+          <div class="lib-scroll" id="lib-featured"></div>
+
+          <!-- Romans -->
+          <div class="lib-section-title">📖 Romans classiques</div>
+          <div class="lib-scroll" id="lib-romans"></div>
+
+          <!-- Philosophie -->
+          <div class="lib-section-title">🧠 Philosophie</div>
+          <div class="lib-scroll" id="lib-philo"></div>
+
+          <!-- En français -->
+          <div class="lib-section-title">🇫🇷 En français</div>
+          <div class="lib-scroll" id="lib-fr"></div>
+        </div>
       </div>
 
       <!-- PAGE LIBRAIRIE -->
@@ -1303,8 +1416,8 @@
         Lire
       </button>
       <button class="nav-item" data-route-nav="library-store">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
-        Biblio
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        Librairie
       </button>
       <button class="nav-item" data-route-nav="import">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -1316,6 +1429,23 @@
       </button>
     </nav>
   </div><!-- .app-shell -->
+
+  <!-- MODAL LIVRE LIBRAIRIE -->
+  <div id="lib-modal">
+    <div class="lib-modal-box">
+      <div class="lib-modal-header">
+        <div class="lib-modal-cover" id="lib-modal-cover"></div>
+        <div style="flex:1;min-width:0;">
+          <div class="lib-modal-title" id="lib-modal-title"></div>
+          <div class="lib-modal-author" id="lib-modal-author"></div>
+          <div class="lib-list-badges" id="lib-modal-badges" style="margin-top:var(--space-2);"></div>
+        </div>
+      </div>
+      <div class="lib-modal-desc" id="lib-modal-desc"></div>
+      <div class="lib-modal-actions" id="lib-modal-actions"></div>
+      <button class="btn btn-outline" id="lib-modal-close" style="width:100%;margin-top:var(--space-3);">Fermer</button>
+    </div>
+  </div>
 
   <!-- MODAL LIVRE LIBRAIRIE -->
   <div id="lib-modal">
@@ -2143,6 +2273,7 @@
     if (nav) nav.classList.add('active');
     renderAll();
     if (route === 'stats') renderStats();
+        if (route === 'library-store') renderLibrary();
    }
 
    function updateControlsUI() {
@@ -3337,7 +3468,181 @@
     } catch(e) { console.warn('Notification échouée:', e); }
    }
 
-   // ─── BOOTSTRAP ASYNC ─────────────────────────────────────────────────────
+   let _libCurrentCat = 'all';
+   let _libSearchQuery = '';
+
+   async function _getGutenbergLinks(gutId) {
+
+   function _libBookCard(book) {
+    const div = document.createElement('div');
+    div.className = 'lib-book-card';
+    div.innerHTML = `
+     <div class="lib-book-cover" style="background:${book.color};">
+      <div class="lib-book-emoji">${book.emoji}</div>
+      <div class="lib-book-cover-title">${book.title}</div>
+     </div>
+     <div class="lib-book-title">${book.title}</div>
+     <div class="lib-book-author">${book.author}</div>`;
+    div.addEventListener('click', () => _openLibModal(book));
+    return div;
+   }
+
+   function _libListItem(book) {
+    const formats = Object.keys(book.formats || {});
+    const div = document.createElement('div');
+    div.className = 'lib-list-item';
+    div.innerHTML = `
+     <div class="lib-list-cover" style="background:${book.color}20;">${book.emoji}</div>
+     <div class="lib-list-info">
+      <div class="lib-list-title">${book.title}</div>
+      <div class="lib-list-author">${book.author}</div>
+      <div class="lib-list-badges">
+       ${formats.map(f => `<span class="lib-format-badge ${f}">${f.toUpperCase()}</span>`).join('')}
+       <span class="lib-format-badge">${book.lang === 'fr' ? '🇫🇷 FR' : '🇬🇧 EN'}</span>
+      </div>
+     </div>`;
+    div.addEventListener('click', () => _openLibModal(book));
+    return div;
+   }
+
+   function renderLibrary() {
+    const q   = _libSearchQuery.toLowerCase().trim();
+    const cat = _libCurrentCat;
+
+    let books = LIBRARY_CATALOG.filter(b => {
+     const matchCat = cat === 'all' || b.cat.includes(cat);
+     const matchQ   = !q || b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q);
+     return matchCat && matchQ;
+    });
+
+    if (q) {
+     $('#lib-default-sections').style.display = 'none';
+     $('#lib-search-results').style.display = 'block';
+     $('#lib-result-count').textContent = `(${books.length})`;
+     const list = $('#lib-results-list');
+     list.innerHTML = '';
+     if (!books.length) {
+      list.innerHTML = '<p style="text-align:center;color:var(--color-text-faint);padding:var(--space-4);">Aucun résultat</p>';
+     } else {
+      books.forEach(b => list.appendChild(_libListItem(b)));
+     }
+    } else {
+     $('#lib-default-sections').style.display = 'block';
+     $('#lib-search-results').style.display = 'none';
+
+     const fillScroll = (id, filter) => {
+      const el = $(`#${id}`);
+      if (!el) return;
+      el.innerHTML = '';
+      const filtered = books.filter(filter);
+      if (!filtered.length) {
+       el.innerHTML = '<p style="font-size:11px;color:var(--color-text-faint);padding:var(--space-2);">Aucun livre dans cette catégorie.</p>';
+       return;
+      }
+      filtered.forEach(b => el.appendChild(_libBookCard(b)));
+     };
+
+     fillScroll('lib-featured', b => b.cat.includes('featured'));
+     fillScroll('lib-romans',   b => b.cat.includes('roman'));
+     fillScroll('lib-philo',    b => b.cat.includes('philo'));
+     fillScroll('lib-fr',       b => b.lang === 'fr');
+    }
+   }
+
+   function _openLibModal(book) {
+    $('#lib-modal-cover').style.background = book.color + '30';
+    $('#lib-modal-cover').textContent = book.emoji;
+    $('#lib-modal-title').textContent  = book.title;
+    $('#lib-modal-author').textContent = book.author;
+    $('#lib-modal-desc').textContent   = book.desc;
+    $('#lib-modal-badges').innerHTML   =
+     `<span class="lib-format-badge">${book.lang === 'fr' ? '🇫🇷 FR' : '🇬🇧 EN'}</span>`;
+
+    const actions = $('#lib-modal-actions');
+    actions.innerHTML = '<div style="text-align:center;color:var(--color-text-faint);font-size:var(--text-xs);padding:var(--space-3);">⏳ Chargement des liens…</div>';
+
+    $('#lib-modal').classList.add('active');
+
+    _getGutenbergLinks(book.gutId).then(links => {
+     actions.innerHTML = '';
+
+     if (links.txt) {
+      const btnRead = document.createElement('button');
+      btnRead.className = 'btn btn-primary';
+      btnRead.innerHTML = '▶ Lire maintenant (import texte)';
+      btnRead.addEventListener('click', () => {
+       $('#lib-modal').classList.remove('active');
+       navigate('import');
+       const inp = $('#url-import-input');
+       if (inp) inp.value = links.txt;
+       toast(`⏳ Import de "${book.title}"…`);
+       setTimeout(() => importFromUrl(links.txt), 300);
+      });
+      actions.appendChild(btnRead);
+     }
+
+     if (links.epub) {
+      const a = document.createElement('a');
+      a.className = 'btn btn-outline';
+      a.href = links.epub; a.target = '_blank'; a.rel = 'noopener';
+      a.style.textAlign = 'center'; a.textContent = '⬇ Télécharger EPUB';
+      actions.appendChild(a);
+     }
+
+     if (links.html) {
+      const a = document.createElement('a');
+      a.className = 'btn btn-outline';
+      a.href = links.html; a.target = '_blank'; a.rel = 'noopener';
+      a.style.textAlign = 'center'; a.textContent = '🌐 Lire en ligne (HTML)';
+      actions.appendChild(a);
+     }
+
+     const gutLink = links.page || `https://www.gutenberg.org/ebooks/${book.gutId}`;
+     const btnGut = document.createElement('a');
+     btnGut.className = 'btn btn-outline';
+     btnGut.href = gutLink; btnGut.target = '_blank'; btnGut.rel = 'noopener';
+     btnGut.style.textAlign = 'center';
+     btnGut.textContent = '🔗 Page Project Gutenberg (tous formats)';
+     actions.appendChild(btnGut);
+
+     const badges = $('#lib-modal-badges');
+     if (links.txt)  badges.innerHTML += '<span class="lib-format-badge txt">TXT</span>';
+     if (links.epub) badges.innerHTML += '<span class="lib-format-badge epub">EPUB</span>';
+     if (links.html) badges.innerHTML += '<span class="lib-format-badge">HTML</span>';
+
+    }).catch(() => {
+     actions.innerHTML = `<a class="btn btn-primary" href="https://www.gutenberg.org/ebooks/${book.gutId}" target="_blank" rel="noopener" style="text-align:center;">🔗 Ouvrir sur Project Gutenberg</a>`;
+    });
+   }
+
+   $('#lib-modal-close')?.addEventListener('click', () => {
+    $('#lib-modal').classList.remove('active');
+   });
+   $('#lib-modal')?.addEventListener('click', (e) => {
+    if (e.target === $('#lib-modal')) $('#lib-modal').classList.remove('active');
+   });
+
+   $('#lib-search')?.addEventListener('input', (e) => {
+    _libSearchQuery = e.target.value;
+    renderLibrary();
+   });
+   $('#lib-search-btn')?.addEventListener('click', () => {
+    _libSearchQuery = $('#lib-search').value;
+    renderLibrary();
+   });
+
+   $$('.lib-cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+     $$('.lib-cat-btn').forEach(b => b.classList.remove('active'));
+     btn.classList.add('active');
+     _libCurrentCat = btn.dataset.cat;
+     _libSearchQuery = '';
+     $('#lib-search').value = '';
+     renderLibrary();
+    });
+   });
+
+// ─── BOOTSTRAP ASYNC ─────────────────────────────────────────────────────
    initStorage().then(() => {
     document.documentElement.setAttribute('data-theme', appState.theme);
     $('#theme-toggle-btn').innerHTML = appState.theme === 'dark'
