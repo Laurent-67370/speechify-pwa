@@ -1257,6 +1257,14 @@
         'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
     }
 
+    window.onerror = function(msg, src, line) {
+      setTimeout(function() {
+        var d = document.createElement('div');
+        d.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#900;color:#fff;padding:8px;font-size:11px;z-index:9999;';
+        d.textContent = 'ERR: '+msg+' L'+line;
+        if(document.body) document.body.appendChild(d);
+      }, 100);
+    };
     document.addEventListener('DOMContentLoaded', () => {
       if (window.lucide) lucide.createIcons();
 
@@ -2239,6 +2247,8 @@
       });
 
       function renderAll() {
+        // DEBUG temporaire
+        console.log('renderAll: docs='+appState.docs.length+' route='+appState.route+' docId='+appState.currentDocId);
         const doc = appState.docs.find(d => d.id === appState.currentDocId);
         if (doc) {
           $('#reader-doc-title').textContent = doc.title;
