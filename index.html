@@ -1997,7 +1997,7 @@
       // Vitesse de sync highlight : ajustable via le curseur (valeur par défaut = 9 chars/sec)
       // Plus la valeur est basse → highlight plus lent → correspond mieux aux voix lentes
       let CHARS_PER_SEC = 9;
-      const CHUNK_MAX     = 1200; // réduit pour meilleure fluidité TTS mobile
+      const CHUNK_MAX     = 1500;
 
       function _startKeepAlive() {
         _stopKeepAlive();
@@ -2307,84 +2307,78 @@
       let _pausedChunkOnHide = -1;
 
       // ─── PRÉPROCESSEUR TTS — QUALITÉ AUDIO ──────────────────────────
-      // Nettoie le texte AVANT envoi à speechSynthesis.
-      // N'affecte pas le texte affiché ni les positions de surlignage.
       function _ttsClean(text) {
-        return text
-          // ── 1. Ponctuation typographique → ASCII parlé ──────────────
-          .replace(/[«»""„"]/g, '')               // guillemets → silence naturel
-          .replace(/[–—]/g, ', ')                  // tirets longs → pause courte
-          .replace(/…|\.{3,}/g, '… ')         // ellipses → pause + espace
-          .replace(/[·•◦‣▸▪▫]/g, ', ')             // puces → pause
-          .replace(/\*/g, '')                       // astérisques (markdown bold)
-          .replace(/_+/g, '')                       // soulignements markdown
-          .replace(/#{1,6}\s*/g, '')                // titres markdown
-          .replace(/\|/g, ', ')                     // tableaux markdown → pause
+        let t = text;
 
-          // ── 2. Abréviations françaises → forme longue ───────────────
-          .replace(/M\.\s/g, 'Monsieur ')
-          .replace(/Mme\.?\s/gi, 'Madame ')
-          .replace(/Mlle\.?\s/gi, 'Mademoiselle ')
-          .replace(/Dr\.?\s/gi, 'Docteur ')
-          .replace(/Pr\.?\s/gi, 'Professeur ')
-          .replace(/St\.?\s/gi, 'Saint ')
-          .replace(/etc\./gi, 'et cetera')
-          .replace(/cf\./gi, 'voir')
-          .replace(/vs\./gi, 'versus')
-          .replace(/p\.\s?ex\./gi, 'par exemple')
-          .replace(/c\.?à\.?d\.?/gi, "c'est-à-dire")
-          .replace(/i\.e\./gi, "c'est-à-dire")
-          .replace(/e\.g\./gi, 'par exemple')
-          .replace(/N\.B\./gi, 'nota bene')
+        // 1. Guillemets typographiques → supprimés (silence naturel)
+        t = t.replace(/[«»\u201C\u201D\u201E\u201F]/g, '');
 
-          // ── 3. Chiffres et unités → lisible à voix haute ────────────
-          .replace(/(\d+)\s*%/g, '$1 pourcent')
-          .replace(/(\d+)\s*€/g, '$1 euros')
-          .replace(/(\d+)\s*\$/g, '$1 dollars')
-          .replace(/(\d+)\s*km/gi, '$1 kilomètres')
-          .replace(/(\d+)\s*m(?!\w)/g, '$1 mètres')
-          .replace(/(\d+)\s*kg/gi, '$1 kilogrammes')
-          .replace(/(\d+)\s*g(?!\w)/g, '$1 grammes')
-          .replace(/(\d+)\s*h/g, '$1 heures')
-          .replace(/(\d+)\s*min/gi, '$1 minutes')
-          .replace(/(\d+)\s*s(?!\w)/g, '$1 secondes')
-          .replace(/(\d+)\s*°C/gi, '$1 degrés')
+        // 2. Tirets longs → pause courte
+        t = t.replace(/[\u2013\u2014]/g, ', ');
 
-          // ── 4. Nombres avec séparateurs → sans ambiguïté ────────────
-          .replace(/(\d)\s(\d{3})/g, '$1$2')    // "1 000" → "1000"
-          .replace(/(\d)\.(\d{3})/g, '$1$2')    // "1.000" → "1000" (sépar. milliers)
+        // 3. Ellipses → pause
+        t = t.replace(/\u2026/g, '... ');
+        t = t.replace(/\.{3,}/g, '... ');
 
-          // ── 5. Sigles et acronymes → espacés pour épellation ─────────
-          // Ex: "TTS" → "T.T.S." pour que le TTS épelle lettre par lettre
-          // Non appliqué car certaines voix FR lisent déjà bien les sigles
+        // 4. Puces et symboles parasites
+        t = t.replace(/[·•◦‣▸▪▫▶►\*#]/g, '');
 
-          // ── 6. URLs et emails → silence ─────────────────────────────
-          .replace(/https?:\/\/[^\s]+/g, '')
-          .replace(/\S+@\S+\.\S+/g, '')
+        // 5. Markdown résiduel
+        t = t.replace(/_{2,}/g, '');
+        t = t.replace(/\|/g, ', ');
 
-          // ── 7. Sauts de ligne → pauses naturelles ───────────────────
-          .replace(/
-{3,}/g, '
+        // 6. Abréviations françaises → forme longue
+        t = t.replace(/\bM\.\s/g, 'Monsieur ');
+        t = t.replace(/\bMme\.?\s/gi, 'Madame ');
+        t = t.replace(/\bMlle\.?\s/gi, 'Mademoiselle ');
+        t = t.replace(/\bDr\.?\s/gi, 'Docteur ');
+        t = t.replace(/\bPr\.?\s/gi, 'Professeur ');
+        t = t.replace(/\bSt\.?\s/gi, 'Saint ');
+        t = t.replace(/\betc\./gi, 'et cetera');
+        t = t.replace(/\bcf\.\s/gi, 'voir ');
+        t = t.replace(/\bvs\.\s/gi, 'versus ');
+        t = t.replace(/\bp\.\s?ex\./gi, 'par exemple');
+        t = t.replace(/\bc\.?à\.?d\.?/gi, "c'est-à-dire");
+        t = t.replace(/\bi\.e\.\s/gi, "c'est-à-dire ");
+        t = t.replace(/\be\.g\.\s/gi, 'par exemple ');
+        t = t.replace(/\bN\.B\.\s/gi, 'nota bene ');
 
-')              // max 2 sauts
-          .replace(/
+        // 7. Unités et symboles numériques
+        t = t.replace(/(\d+)\s*%/g, '$1 pourcent');
+        t = t.replace(/(\d+)\s*€/g, '$1 euros');
+        t = t.replace(/(\d+)\s*\$\b/g, '$1 dollars');
+        t = t.replace(/(\d+)\s*km\b/gi, '$1 kilomètres');
+        t = t.replace(/(\d+)\s*kg\b/gi, '$1 kilogrammes');
+        t = t.replace(/(\d+)\s*°C\b/gi, '$1 degrés Celsius');
+        t = t.replace(/(\d+)\s*h\b/g, '$1 heures');
+        t = t.replace(/(\d+)\s*min\b/gi, '$1 minutes');
 
-/g, '. ')                  // paragraphe → fin de phrase
-          .replace(/
-/g, ', ')                    // saut simple → virgule-pause
+        // 8. URLs et emails → silence
+        t = t.replace(/https?:\/\/[^\s]+/g, '');
+        t = t.replace(/[^\s]+@[^\s]+\.[^\s]+/g, '');
 
-          // ── 8. Ponctuation répétée ou collée ────────────────────────
-          .replace(/([.!?]){2,}/g, '$1')           // "!!!" → "!"
-          .replace(/,{2,}/g, ',')                  // ",," → ","
-          .replace(/\s+([.!?,;:])/g, '$1')         // espace avant ponctuation
-          .replace(/([.!?,;:])([^\s"'»])/g, '$1 $2') // manque espace après ponctuation
+        // 9. Sauts de ligne → pauses naturelles
+        t = t.replace(/\n{3,}/g, '\n\n');
+        t = t.replace(/\n\n/g, '. ');
+        t = t.replace(/\n/g, ', ');
 
-          // ── 9. Espaces parasites ─────────────────────────────────────
-          .replace(/\s{2,}/g, ' ')
-          .replace(/^\s+|\s+$/g, '')
+        // 10. Ponctuation répétée
+        t = t.replace(/([.!?]){2,}/g, '$1');
+        t = t.replace(/,{2,}/g, ',');
 
-          // ── 10. Finir par ponctuation pour intonation finale ────────
-          + (text.trim().match(/[.!?]$/) ? '' : '.');
+        // 11. Espace avant ponctuation (french style artefacts)
+        t = t.replace(/\s+([,;:])/g, '$1');
+
+        // 12. Ponctuation collée → séparer
+        t = t.replace(/([.!?,;:])([^\s\d"'»])/g, '$1 $2');
+
+        // 13. Espaces multiples
+        t = t.replace(/\s{2,}/g, ' ').trim();
+
+        // 14. Garantir ponctuation finale pour intonation descendante
+        if (t.length > 0 && !/[.!?]$/.test(t)) t = t + '.';
+
+        return t;
       }
 
       function startSpeechEngine() {
