@@ -1,4 +1,4 @@
-// Catalogue SpeechifyPro — livres domaine public
+// SpeechifyPro — Catalogue et fonctions librairie
 var LIBRARY_CATALOG = [
   // COUPS DE CŒUR
   { id:'g1',  gutId:17489, title:'Les Misérables',               author:'Victor Hugo',          emoji:'🏛️', color:'#1a237e', cat:['roman','fr','featured'], lang:'fr', desc:'Le chef-d\'œuvre de Victor Hugo — Jean Valjean et sa rédemption dans la France du XIXe siècle.' },
@@ -37,13 +37,10 @@ var LIBRARY_CATALOG = [
   { id:'g24', gutId:8800,  title:'The Divine Comedy',          author:'Dante Alighieri',      emoji:'🔥', color:'#b71c1c', cat:['poesie'],                lang:'en', desc:'The epic journey through Hell, Purgatory, and Paradise.' },
 ];
 
-
-
-// ── Fonctions librairie ──
+document.addEventListener('DOMContentLoaded', function() {
 let _libCurrentCat = 'all';
 let _libSearchQuery = '';
 
-// Récupérer les URLs de téléchargement via l'API Gutendex (côté navigateur)
 async function _getGutenbergLinks(gutId) {
 
 function _libBookCard(book) {
@@ -204,7 +201,6 @@ $('#lib-modal')?.addEventListener('click', (e) => {
   if (e.target === $('#lib-modal')) $('#lib-modal').classList.remove('active');
 });
 
-// Recherche
 $('#lib-search')?.addEventListener('input', (e) => {
   _libSearchQuery = e.target.value;
   renderLibrary();
@@ -214,7 +210,6 @@ $('#lib-search-btn')?.addEventListener('click', () => {
   renderLibrary();
 });
 
-// Catégories
 $$('.lib-cat-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     $$('.lib-cat-btn').forEach(b => b.classList.remove('active'));
@@ -224,4 +219,5 @@ $$('.lib-cat-btn').forEach(btn => {
     $('#lib-search').value = '';
     renderLibrary();
   });
+});
 });
