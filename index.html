@@ -627,6 +627,7 @@
     .ocr-progress-bar { height: 6px; background: var(--color-border); border-radius: 3px; overflow: hidden; margin-top: var(--space-2); }
     .ocr-progress-fill { height: 100%; background: var(--color-primary); border-radius: 3px; transition: width .2s; width: 0%; }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="catalog.js"></script>
 </head>
 <body>
@@ -2579,6 +2580,19 @@
         }
       });
 
+      // Import EPUB
+      $('#epub-drop-zone')?.addEventListener('click', () => $('#epub-file-input')?.click());
+      $('#epub-file-input')?.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (typeof JSZip === 'undefined') {
+          toast('⚠️ JSZip non chargé, réessaie dans 2 secondes');
+          return;
+        }
+        await importEpub(file);
+        e.target.value = '';
+      });
+
       // Export TXT
       $('#export-audio-btn').addEventListener('click', () => {
         const doc = appState.docs.find(d => d.id === appState.currentDocId);
@@ -3473,6 +3487,79 @@
       }
 
       _initLibraryListeners();
+
+
+      // ─── IMPORT EPUB ──────────────────────────────────────────────────────────
+      async function importEpub(file) {
+        const statusEl = $('#url-import-status') || { textContent: '', style: {} };
+        statusEl.style.display = 'block';
+        statusEl.textContent = '⏳ Lecture du fichier EPUB…';
+        try {
+          const zip = await JSZip.loadAsync(file);
+          // Trouver le fichier OPF (manifest)
+          let opfPath = null;
+          const container = zip.file('META-INF/container.xml');
+          if (container) {
+            const containerXml = await container.async('text');
+            const m = containerXml.match(/full-path="([^"]+\.opf)"/);
+            if (m) opfPath = m[1];
+          }
+          if (!opfPath) opfPath = Object.keys(zip.files).find(f => f.endsWith('.opf'));
+          if (!opfPath) throw new Error('Fichier OPF non trouvé dans le EPUB');
+
+          // Lire l'OPF pour trouver l'ordre des chapitres
+          const opfContent = await zip.file(opfPath).async('text');
+          const baseDir = opfPath.includes('/') ? opfPath.substring(0, opfPath.lastIndexOf('/') + 1) : '';
+          
+          // Extraire le titre
+          const titleM = opfContent.match(/<dc:title[^>]*>([^<]+)<\/dc:title>/i);
+          const title = titleM ? titleM[1].trim() : file.name.replace('.epub','');
+          
+          // Trouver les fichiers HTML dans l'ordre du spine
+          const spineItems = [];
+          const itemMap = {};
+          const itemMatches = opfContent.matchAll(/<item[^>]+id="([^"]+)"[^>]+href="([^"]+)"[^>]*media-type="application\/xhtml[^"]*"/gi);
+          for (const m of itemMatches) itemMap[m[1]] = m[2];
+          const spineMatches = opfContent.matchAll(/<itemref[^>]+idref="([^"]+)"/gi);
+          for (const m of spineMatches) if (itemMap[m[1]]) spineItems.push(itemMap[m[1]]);
+          if (!spineItems.length) {
+            // Fallback : tous les fichiers xhtml
+            Object.keys(zip.files).forEach(f => { if (f.endsWith('.xhtml') || f.endsWith('.html')) spineItems.push(f.replace(baseDir,'')); });
+          }
+
+          // Extraire le texte de chaque chapitre
+          statusEl.textContent = `⏳ Extraction de ${spineItems.length} chapitres…`;
+          let fullText = '';
+          for (const item of spineItems) {
+            const path = baseDir + item;
+            const zipFile = zip.file(path) || zip.file(item);
+            if (!zipFile) continue;
+            const html = await zipFile.async('text');
+            // Extraire le texte brut du HTML
+            const text = html
+              .replace(/<style[^>]*>.*?<\/style>/gsi, '')
+              .replace(/<script[^>]*>.*?<\/script>/gsi, '')
+              .replace(/<[^>]+>/g, ' ')
+              .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+              .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+              .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+              .replace(/\s{3,}/g, '\n\n').trim();
+            if (text.length > 50) fullText += text + '\n\n';
+          }
+          
+          if (!fullText || fullText.length < 100) throw new Error('Aucun texte extrait du EPUB');
+          
+          const wordCount = fullText.split(/\s+/).length;
+          statusEl.textContent = `✅ ${wordCount} mots — « ${title.substring(0,40)} »`;
+          await insertDocToLibrary(title, fullText, 'epub', 'EPUB');
+          setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
+          navigate('library');
+          toast('📚 "' + title + '" importé avec succès !');
+        } catch(e) {
+          statusEl.textContent = '❌ Erreur EPUB : ' + e.message;
+          console.error('EPUB import error:', e);
+        }
+      }
 
       // ─── BOOTSTRAP ASYNC ─────────────────────────────────────────────────────
       initStorage().then(() => {
