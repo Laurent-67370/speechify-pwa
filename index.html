@@ -3451,6 +3451,8 @@
         } catch(e) { console.warn('Notification échouée:', e); }
       }
 
+      _initLibraryListeners();
+
       // ─── BOOTSTRAP ASYNC ─────────────────────────────────────────────────────
       initStorage().then(() => {
         // Restaurer thème
