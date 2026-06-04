@@ -2791,17 +2791,30 @@
       updateHighlightBtn();
 
       // ─── MODE ZEN — téléprompter fond noir ───────────────────────────────────
+      const ZEN_WINDOW = 400; // mots affichés en mode Zen
+      let _zenWinStart = 0;   // début de la fenêtre courante
+
       function _zenRenderText() {
         const doc = appState.docs.find(d => d.id === appState.currentDocId);
         const box = $('#zen-text');
         if (!doc || !appState.wordsArray.length) { box.textContent = ''; return; }
-        box.innerHTML = appState.wordsArray.map((tok, i) =>
-          tok.trim() === ''
-            ? tok
-            : `<span class="zen-word" id="zword-${i}">${tok}</span>`
-        ).join('');
+
+        const wa  = appState.wordsArray;
+        const cur = appState.currentWordIndex || 0;
+
+        // Centrer la fenêtre sur la position courante
+        _zenWinStart = Math.max(0, cur - 80);
+        const winEnd = Math.min(wa.length, _zenWinStart + ZEN_WINDOW);
+        const slice  = wa.slice(_zenWinStart, winEnd);
+
+        box.innerHTML = slice.map((tok, i) => {
+          const absIdx = _zenWinStart + i;
+          if (tok.trim() === '') return tok;
+          return '<span class="zen-word" id="zword-' + absIdx + '">' + tok + '</span>';
+        }).join('');
+
         // Clic sur un mot → repositionner la lecture
-        $$('#zen-text .zen-word').forEach(span => {
+        box.querySelectorAll('.zen-word').forEach(span => {
           span.addEventListener('click', () => {
             const idx = parseInt(span.id.replace('zword-', ''));
             if (isNaN(idx)) return;
@@ -2815,28 +2828,52 @@
       function _zenHighlight(index) {
         const box = $('#zen-text');
         if (!box) return;
-        $$('#zen-text .zen-word').forEach(s => {
+
+        const wa = appState.wordsArray;
+        const winEnd = _zenWinStart + ZEN_WINDOW;
+
+        // Si le mot sort de la fenêtre → re-rendre autour du nouveau mot
+        if (index < _zenWinStart + 20 || index > winEnd - 20) {
+          _zenWinStart = Math.max(0, index - 80);
+          const newEnd = Math.min(wa.length, _zenWinStart + ZEN_WINDOW);
+          const slice  = wa.slice(_zenWinStart, newEnd);
+          box.innerHTML = slice.map((tok, i) => {
+            const absIdx = _zenWinStart + i;
+            if (tok.trim() === '') return tok;
+            return '<span class="zen-word" id="zword-' + absIdx + '">' + tok + '</span>';
+          }).join('');
+          // Ré-attacher les listeners
+          box.querySelectorAll('.zen-word').forEach(span => {
+            span.addEventListener('click', () => {
+              const idx2 = parseInt(span.id.replace('zword-', ''));
+              if (isNaN(idx2)) return;
+              appState.currentWordIndex = idx2;
+              if (appState.playing) { stopSpeechEngine(); setTimeout(() => startSpeechEngine(), 80); }
+              else startSpeechEngine();
+            });
+          });
+        }
+
+        // Mettre à jour les classes uniquement dans la fenêtre visible
+        box.querySelectorAll('.zen-word').forEach(s => {
           const id = parseInt(s.id.replace('zword-', ''));
           s.classList.remove('word-highlight', 'word-read');
           if (id < index)        s.classList.add('word-read');
           else if (id === index) s.classList.add('word-highlight');
         });
-        // Scroll robuste : position relative au conteneur scrollable
-        const node = $(`#zword-${index}`);
+
+        // Scroll vers le mot actif
+        const node = document.getElementById('zword-' + index);
         if (node && box) {
-          // Utiliser offsetTop relatif au parent scrollable
           let offsetTop = 0;
           let el = node;
-          while (el && el !== box) {
-            offsetTop += el.offsetTop;
-            el = el.offsetParent;
-          }
-          const target = offsetTop - (box.clientHeight / 2) + (node.clientHeight / 2);
-          box.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+          while (el && el !== box) { offsetTop += el.offsetTop; el = el.offsetParent; }
+          box.scrollTo({ top: Math.max(0, offsetTop - box.clientHeight / 2 + node.clientHeight / 2), behavior: 'smooth' });
         }
-        // Progression zen
-        if (appState.wordsArray.length) {
-          const pct  = Math.round((index / appState.wordsArray.length) * 100);
+
+        // Progression
+        if (wa.length) {
+          const pct  = Math.round((index / wa.length) * 100);
           const fill = $('#zen-progress-fill');
           if (fill) fill.style.width = pct + '%';
         }
