@@ -109,36 +109,89 @@ function _openLibModal(book) {
   document.getElementById('lib-modal-title').textContent = book.title;
   document.getElementById('lib-modal-author').textContent = book.author;
   document.getElementById('lib-modal-desc').textContent = book.desc;
+  var badges = document.getElementById('lib-modal-badges');
+  if (badges) badges.innerHTML = '<span class="lib-format-badge">' + (book.lang === 'fr' ? '🇫🇷 FR' : '🇬🇧 EN') + '</span>';
   var actions = document.getElementById('lib-modal-actions');
-  actions.innerHTML = '';
-  var btnGut = document.createElement('a');
-  btnGut.className = 'btn btn-outline';
-  btnGut.href = 'https://www.gutenberg.org/ebooks/' + book.gutId;
-  btnGut.target = '_blank';
-  btnGut.rel = 'noopener';
-  btnGut.style.textAlign = 'center';
-  btnGut.textContent = 'Ouvrir sur Project Gutenberg';
-  actions.appendChild(btnGut);
+  actions.innerHTML = '<div style="text-align:center;color:var(--color-text-faint);font-size:12px;padding:12px;">⏳ Chargement des liens…</div>';
   modal.classList.add('active');
+
+  // Charger les vrais liens via API Gutendex
+  fetch('https://gutendex.com/books/' + book.gutId + '/')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      actions.innerHTML = '';
+      var formats = data.formats || {};
+      var txtUrl  = null, epubUrl = null;
+      Object.keys(formats).forEach(function(k) {
+        if (k.indexOf('text/plain') !== -1 && !txtUrl)  txtUrl  = formats[k];
+        if (k.indexOf('epub') !== -1 && k.indexOf('zip') === -1 && !epubUrl) epubUrl = formats[k];
+      });
+
+      // Bouton Lire maintenant (TXT)
+      if (txtUrl) {
+        var btn = document.createElement('button');
+        btn.className = 'btn btn-primary';
+        btn.textContent = '▶ Lire maintenant';
+        btn.style.width = '100%';
+        btn.addEventListener('click', function() {
+          modal.classList.remove('active');
+          if (typeof navigate === 'function') navigate('import');
+          var inp = document.getElementById('url-import-input');
+          if (inp) inp.value = txtUrl;
+          if (typeof importFromUrl === 'function') setTimeout(function() { importFromUrl(txtUrl); }, 300);
+          if (typeof toast === 'function') toast('⏳ Import de "' + book.title + '"…');
+        });
+        actions.appendChild(btn);
+      }
+
+      // Bouton EPUB
+      if (epubUrl) {
+        var a = document.createElement('a');
+        a.className = 'btn btn-outline';
+        a.href = epubUrl; a.target = '_blank'; a.rel = 'noopener';
+        a.textContent = '⬇ Télécharger EPUB';
+        a.style.textAlign = 'center'; a.style.display = 'block';
+        actions.appendChild(a);
+      }
+
+      // Lien page Gutenberg
+      var g = document.createElement('a');
+      g.className = 'btn btn-outline';
+      g.href = 'https://www.gutenberg.org/ebooks/' + book.gutId;
+      g.target = '_blank'; g.rel = 'noopener';
+      g.textContent = '🔗 Tous les formats sur Gutenberg';
+      g.style.textAlign = 'center'; g.style.display = 'block';
+      actions.appendChild(g);
+    })
+    .catch(function() {
+      actions.innerHTML = '';
+      var g = document.createElement('a');
+      g.className = 'btn btn-primary';
+      g.href = 'https://www.gutenberg.org/ebooks/' + book.gutId;
+      g.target = '_blank'; g.rel = 'noopener';
+      g.textContent = '🔗 Ouvrir sur Project Gutenberg';
+      g.style.textAlign = 'center'; g.style.display = 'block';
+      actions.appendChild(g);
+    });
 }
+
 
 // ── Init listeners (appelé depuis DOMContentLoaded de index.html)
 function _initLibraryListeners() {
-  var searchEl = document.getElementById('lib-search');
+  var searchEl  = document.getElementById('lib-search');
   var searchBtn = document.getElementById('lib-search-btn');
   var modalClose = document.getElementById('lib-modal-close');
   var modal = document.getElementById('lib-modal');
 
   if (searchEl) searchEl.addEventListener('input', function(e) {
-    _libSearchQuery = e.target.value;
-    renderLibrary();
+    _libSearchQuery = e.target.value; renderLibrary();
   });
   if (searchBtn) searchBtn.addEventListener('click', function() {
-    _libSearchQuery = document.getElementById('lib-search').value;
+    _libSearchQuery = (document.getElementById('lib-search') || {}).value || '';
     renderLibrary();
   });
   if (modalClose) modalClose.addEventListener('click', function() {
-    modal && modal.classList.remove('active');
+    if (modal) modal.classList.remove('active');
   });
   if (modal) modal.addEventListener('click', function(e) {
     if (e.target === modal) modal.classList.remove('active');
