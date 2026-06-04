@@ -590,47 +590,54 @@
       background: var(--color-primary); color: #fff; border-color: var(--color-primary);
     }
 
-    /* Accordéon */
-    .help-accordion { margin-bottom: var(--space-3); }
+    /* Accordéon via <details>/<summary> — CSS natif, zéro JS */
+    .help-accordion {
+      margin-bottom: var(--space-3);
+      border-radius: var(--radius-xl);
+      border: 1.5px solid var(--color-border);
+      background: var(--color-surface);
+      overflow: hidden;
+      transition: border-color .18s;
+    }
+    .help-accordion[open] { border-color: var(--color-primary); }
+
     .help-acc-header {
       display: flex; align-items: center; gap: var(--space-3);
       padding: var(--space-4); cursor: pointer;
-      border-radius: var(--radius-xl); background: var(--color-surface);
-      border: 1.5px solid var(--color-border); transition: all .18s;
-      user-select: none;
+      list-style: none; user-select: none;
+      transition: background .18s;
     }
-    .help-acc-header:hover { border-color: var(--color-primary); background: var(--color-primary-soft); }
-    .help-acc-header.open {
-      border-bottom-left-radius: 0; border-bottom-right-radius: 0;
-      border-bottom-color: transparent; background: var(--color-primary-soft);
-      border-color: var(--color-primary);
-    }
+    .help-acc-header::-webkit-details-marker { display: none; }
+    .help-accordion[open] .help-acc-header { background: var(--color-primary-soft); }
+    .help-acc-header:active { background: var(--color-primary-soft); }
+
     .help-acc-icon {
       width: 38px; height: 38px; border-radius: var(--radius-md); flex-shrink: 0;
       display: grid; place-items: center; font-size: 20px;
-      background: var(--color-primary-soft);
+      background: var(--color-primary-soft); pointer-events: none;
     }
     .help-acc-title {
       flex: 1; font-size: var(--text-sm); font-weight: 700;
+      pointer-events: none;
     }
     .help-acc-count {
       font-size: 11px; background: var(--color-surface-offset);
       padding: 2px 8px; border-radius: var(--radius-full);
       color: var(--color-text-faint); font-weight: 600;
+      pointer-events: none;
     }
     .help-acc-arrow {
       color: var(--color-text-faint); font-size: 12px;
       transition: transform .25s cubic-bezier(.4,0,.2,1);
+      pointer-events: none;
     }
-    .help-acc-header.open .help-acc-arrow { transform: rotate(180deg); }
+    .help-accordion[open] .help-acc-arrow { transform: rotate(180deg); }
 
     .help-acc-body {
-      display: none; padding: 0;
-      border: 1.5px solid var(--color-primary); border-top: none;
-      border-bottom-left-radius: var(--radius-xl); border-bottom-right-radius: var(--radius-xl);
-      background: var(--color-surface); overflow: hidden;
+      border-top: 1px solid var(--color-divider);
+      background: var(--color-surface);
+      overflow: hidden;
     }
-    .help-acc-body.open { display: block; }
 
     /* Item dans accordéon */
     .help-item {
@@ -1113,14 +1120,14 @@
         <div style="padding:0 var(--space-4) var(--space-8);" id="help-content">
 
           <!-- ── 1. DÉMARRAGE RAPIDE ── -->
-          <div class="help-accordion" data-cat="start">
-            <div class="help-acc-header open" data-acc-toggle="1">
+          <details class="help-accordion" data-cat="start" open>
+            <summary class="help-acc-header">
               <div class="help-acc-icon">🚀</div>
               <div class="help-acc-title">Démarrage rapide</div>
               <span class="help-acc-count">3 étapes</span>
               <span class="help-acc-arrow">▾</span>
-            </div>
-            <div class="help-acc-body open">
+            </summary>
+            <div class="help-acc-body">
               <div class="help-steps">
                 <div class="help-step">
                   <div class="help-step-num">1</div>
@@ -1146,16 +1153,14 @@
                 </div>
               </div>
             </div>
-          </div>
-
-          <!-- ── 2. IMPORT ── -->
-          <div class="help-accordion" data-cat="import">
-            <div class="help-acc-header" data-acc-toggle="1">
+          </details>         <!-- ── 2. IMPORT ── -->
+          <details class="help-accordion" data-cat="import">
+            <summary class="help-acc-header">
               <div class="help-acc-icon">📥</div>
               <div class="help-acc-title">Importer des documents</div>
               <span class="help-acc-count">4 formats</span>
               <span class="help-acc-arrow">▾</span>
-            </div>
+            </summary>
             <div class="help-acc-body">
               <div class="help-item" data-keywords="pdf fichier document pages">
                 <div class="help-item-icon">📄</div>
@@ -1196,16 +1201,14 @@
                 </div>
               </div>
             </div>
-          </div>
-
-          <!-- ── 3. LECTURE AUDIO ── -->
-          <div class="help-accordion" data-cat="audio">
-            <div class="help-acc-header" data-acc-toggle="1">
+          </details>         <!-- ── 3. LECTURE AUDIO ── -->
+          <details class="help-accordion" data-cat="audio">
+            <summary class="help-acc-header">
               <div class="help-acc-icon">🔊</div>
               <div class="help-acc-title">Lecture audio</div>
               <span class="help-acc-count">5 réglages</span>
               <span class="help-acc-arrow">▾</span>
-            </div>
+            </summary>
             <div class="help-acc-body">
               <div class="help-item" data-keywords="surligné surlignage mot lecture synchronisé">
                 <div class="help-item-icon">🖊️</div>
@@ -1245,16 +1248,14 @@
                 </div>
               </div>
             </div>
-          </div>
-
-          <!-- ── 4. MODE ZEN + GESTES ── -->
-          <div class="help-accordion" data-cat="zen">
-            <div class="help-acc-header" data-acc-toggle="1">
+          </details>         <!-- ── 4. MODE ZEN + GESTES ── -->
+          <details class="help-accordion" data-cat="zen">
+            <summary class="help-acc-header">
               <div class="help-acc-icon">🌑</div>
               <div class="help-acc-title">Mode Zen</div>
               <span class="help-acc-count">Immersif</span>
               <span class="help-acc-arrow">▾</span>
-            </div>
+            </summary>
             <div class="help-acc-body">
               <div class="help-item" data-keywords="zen mode fond noir téléprompter écran immersif">
                 <div class="help-item-icon">🌑</div>
@@ -1293,16 +1294,14 @@
                 <span class="help-badge green">✅ Nouveau : gestes swipe</span>
               </div>
             </div>
-          </div>
-
-          <!-- ── 5. FONCTIONNALITÉS AVANCÉES ── -->
-          <div class="help-accordion" data-cat="avance">
-            <div class="help-acc-header" data-acc-toggle="1">
+          </details>         <!-- ── 5. FONCTIONNALITÉS AVANCÉES ── -->
+          <details class="help-accordion" data-cat="avance">
+            <summary class="help-acc-header">
               <div class="help-acc-icon">✨</div>
               <div class="help-acc-title">Fonctionnalités avancées</div>
               <span class="help-acc-count">4 outils</span>
               <span class="help-acc-arrow">▾</span>
-            </div>
+            </summary>
             <div class="help-acc-body">
               <div class="help-item" data-keywords="marque page bookmark position sauvegarder">
                 <div class="help-item-icon">🔖</div>
@@ -1333,16 +1332,14 @@
                 </div>
               </div>
             </div>
-          </div>
-
-          <!-- ── 6. DÉPANNAGE ── -->
-          <div class="help-accordion" data-cat="bug">
-            <div class="help-acc-header" data-acc-toggle="1">
+          </details>         <!-- ── 6. DÉPANNAGE ── -->
+          <details class="help-accordion" data-cat="bug">
+            <summary class="help-acc-header">
               <div class="help-acc-icon">🔧</div>
               <div class="help-acc-title">Dépannage</div>
               <span class="help-acc-count">5 problèmes</span>
               <span class="help-acc-arrow">▾</span>
-            </div>
+            </summary>
             <div class="help-acc-body">
               <div class="help-item" data-keywords="audio démarre pas son silence volume muet android">
                 <div class="help-item-icon">🔇</div>
@@ -1383,9 +1380,7 @@
                 </div>
               </div>
             </div>
-          </div>
-
-          <!-- Message aucun résultat -->
+          </details>         <!-- Message aucun résultat -->
           <div id="help-no-results">
             <div style="font-size:2rem;margin-bottom:var(--space-2);">🔍</div>
             <div style="font-weight:700;">Aucun résultat</div>
@@ -4072,29 +4067,9 @@
       }
 
       // ── AIDE v2 : accordéons + recherche + chips ─────────────────────
-      function toggleHelpAcc(header) {
-        // Chercher le body via le parent .help-accordion (robuste)
-        const acc  = header.closest('.help-accordion');
-        if (!acc) return;
-        const body = acc.querySelector('.help-acc-body');
-        if (!body) return;
-        const isOpen = header.classList.contains('open');
-        header.classList.toggle('open', !isOpen);
-        body.classList.toggle('open', !isOpen);
-      }
-      window.toggleHelpAcc = toggleHelpAcc;
+      // toggleHelpAcc supprimé — accordéons natifs <details>/<summary>
 
       function _initHelpPage() {
-        // ── Accordéons : listener direct sur chaque header ──
-        document.querySelectorAll('[data-acc-toggle]').forEach(header => {
-          // Supprimer flag pour éviter double-binding
-          if (header._accBound) return;
-          header._accBound = true;
-          header.addEventListener('click', function() {
-            toggleHelpAcc(this);
-          });
-        });
-
         // Chips filtrage par catégorie
         const chips = document.querySelectorAll('.help-chip');
         chips.forEach(chip => {
@@ -4156,10 +4131,10 @@
             const body   = acc.querySelector('.help-acc-body');
             if (accVisible > 0) {
               acc.style.display = '';
-              header.classList.add('open');
-              body.classList.add('open');
+              acc.open = true; // ouvrir le <details>
             } else {
               acc.style.display = 'none';
+              acc.open = false;
             }
           });
 
@@ -4315,7 +4290,6 @@
         });
 
         renderAll();
-        _initHelpPage(); // Init accordéons dès le départ
         navigate('home');
 
         // Onboarding première utilisation
@@ -4331,7 +4305,6 @@
         appState.docs = [...initialLibraryMock];
         appState.currentDocId = initialLibraryMock[0].id;
         renderAll();
-        _initHelpPage(); // Init accordéons dès le départ
         navigate('home');
       });
     });
