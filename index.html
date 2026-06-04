@@ -4073,28 +4073,26 @@
 
       // ── AIDE v2 : accordéons + recherche + chips ─────────────────────
       function toggleHelpAcc(header) {
-        const body = header.nextElementSibling;
+        // Chercher le body via le parent .help-accordion (robuste)
+        const acc  = header.closest('.help-accordion');
+        if (!acc) return;
+        const body = acc.querySelector('.help-acc-body');
+        if (!body) return;
         const isOpen = header.classList.contains('open');
         header.classList.toggle('open', !isOpen);
         body.classList.toggle('open', !isOpen);
       }
-      // Exposer globalement pour les onclick inline dans le HTML statique
       window.toggleHelpAcc = toggleHelpAcc;
 
-      // Délégation globale sur document : capture tous les clics sur [data-acc-toggle]
-      // fonctionne même avant _initHelpPage() et sans onclick inline
-      document.addEventListener('click', e => {
-        const header = e.target.closest('[data-acc-toggle]');
-        if (header) toggleHelpAcc(header);
-      });
-
       function _initHelpPage() {
-        // ── Accordéons : listener délégué (évite les problèmes de scope) ──
+        // ── Accordéons : listener direct sur chaque header ──
         document.querySelectorAll('[data-acc-toggle]').forEach(header => {
-          // Retirer les vieux listeners en clonant
-          const fresh = header.cloneNode(true);
-          header.parentNode.replaceChild(fresh, header);
-          fresh.addEventListener('click', () => window.toggleHelpAcc(fresh));
+          // Supprimer flag pour éviter double-binding
+          if (header._accBound) return;
+          header._accBound = true;
+          header.addEventListener('click', function() {
+            toggleHelpAcc(this);
+          });
         });
 
         // Chips filtrage par catégorie
@@ -4317,6 +4315,7 @@
         });
 
         renderAll();
+        _initHelpPage(); // Init accordéons dès le départ
         navigate('home');
 
         // Onboarding première utilisation
@@ -4332,6 +4331,7 @@
         appState.docs = [...initialLibraryMock];
         appState.currentDocId = initialLibraryMock[0].id;
         renderAll();
+        _initHelpPage(); // Init accordéons dès le départ
         navigate('home');
       });
     });
