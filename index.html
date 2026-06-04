@@ -1422,23 +1422,11 @@
   <!-- MODAL PREMIUM -->
 
 
+  
   <script>
-    // ✅ FIX CRITIQUE : Configurer le worker PDF.js AVANT tout usage
-    if (typeof pdfjsLib !== 'undefined') {
-      pdfjsLib.GlobalWorkerOptions.workerSrc =
-        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-    }
+    // Données initiales (script séparé pour réduire la taille du listener)
+    var initialLibraryMock = [
 
-    document.addEventListener('DOMContentLoaded', () => {
-      if (window.lucide) lucide.createIcons();
-
-      // Waveform
-      const waveform = document.getElementById('waveform');
-      const heights = [20,45,30,60,75,35,50,70,40,80,55,45,65,30,50,65,40,75,50,55,65,35,45,60];
-      waveform.innerHTML = heights.map((h, i) => `<span style="--i:${i}; height:${h}%"></span>`).join('');
-
-      // Bibliothèque initiale de démonstration
-      const initialLibraryMock = [
         {
           id: 1, title: 'Rapport produit Q2.pdf', type: 'pdf', source: 'Cloud', language: 'Français', minutes: 18, progress: 62,
           content: `Speechify permet de transformer automatiquement un texte, un PDF, un article ou une image en audio naturel. L'application vise la productivité, l'apprentissage et l'accessibilité. Elle prend en charge plusieurs sources d'import : fichiers, liens, cloud, scans OCR et livres numériques. Les utilisateurs peuvent choisir une voix, régler la vitesse de lecture, suivre la progression, surligner les mots pendant l'écoute et exporter certains contenus pour une écoute hors ligne.`,
@@ -1467,7 +1455,25 @@
           summary: [{ headline: "Numérisation de documents physiques", detail: "Le document met en avant la chaîne OCR puis text-to-speech." }],
           insights: [{ headline: "Qualité de l'extraction", detail: "La qualité du texte reconnu détermine la qualité de la lecture." }]
         }
-      ];
+      
+    ];
+  </script>
+<script>
+    // ✅ FIX CRITIQUE : Configurer le worker PDF.js AVANT tout usage
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) lucide.createIcons();
+
+      // Waveform
+      const waveform = document.getElementById('waveform');
+      const heights = [20,45,30,60,75,35,50,70,40,80,55,45,65,30,50,65,40,75,50,55,65,35,45,60];
+      waveform.innerHTML = heights.map((h, i) => `<span style="--i:${i}; height:${h}%"></span>`).join('');
+
+      // Bibliothèque initiale de démonstration
 
       const appState = {
         route: 'home', playing: false, currentFilter: 'all', search: '', sortAsc: false,
