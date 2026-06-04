@@ -23,7 +23,7 @@
 
     // Gestionnaire d'erreur global pour déboguer les crashs silencieux
     window.addEventListener('error', (e) => {
-      const msg = `❌ Erreur JS:\n${e.message}\nFichier: ${e.filename?.split('/').pop()}\nLigne: ${e.lineno}`;
+      const msg = `❌ Erreur JS:\n${e.message}\nFichier: ${e.filename.split('/').pop()}\nLigne: ${e.lineno}`;
       console.error(msg);
       // Afficher à l'écran si l'app est vide
       if (document.body) {
@@ -1573,7 +1573,7 @@
         // Vérifier que le doc courant sauvegardé existe toujours
         const docExists = docs.find(d => d.id === appState.currentDocId);
         if (!docExists) {
-          appState.currentDocId   = docs[0]?.id ?? null;
+          appState.currentDocId   = (docs[0] ? docs[0].id : null);
           appState.currentWordIndex = 0;
         }
 
@@ -1697,7 +1697,7 @@
 
       // Bouton "Actualiser les voix" dans les réglages
       function _addVoiceRefreshBtn() {
-        const voiceRow = $('#voice-quality-badge')?.closest('div');
+        const voiceRow = $('#voice-quality-badge').closest('div');
         if (!voiceRow || $('#voice-refresh-btn')) return;
         const btn = document.createElement('button');
         btn.id = 'voice-refresh-btn';
@@ -2290,12 +2290,12 @@
         // Events cartes
         docs.forEach((d, i) => {
           // Clic sur la carte → sélectionner le doc
-          $(`#ccard-${d.id}`)?.addEventListener('click', (e) => {
+          $(`#ccard-${d.id}`).addEventListener('click', (e) => {
             if (e.target.closest('button')) return; // laisser les boutons gérer
             _selectCarouselDoc(d, i);
           });
           // Bouton Écouter
-          $(`#cplay-${d.id}`)?.addEventListener('click', () => {
+          $(`#cplay-${d.id}`).addEventListener('click', () => {
             _selectCarouselDoc(d, i);
             setTimeout(() => {
               if (!appState.playing) {
@@ -2307,14 +2307,14 @@
             }, 80);
           });
           // Bouton Lire (aller page Reader)
-          $(`#cread-${d.id}`)?.addEventListener('click', () => {
+          $(`#cread-${d.id}`).addEventListener('click', () => {
             _selectCarouselDoc(d, i);
             navigate('reader');
           });
           // Dot
-          $(`#cdot-${i}`)?.addEventListener('click', () => {
+          $(`#cdot-${i}`).addEventListener('click', () => {
             _carouselIndex = i;
-            track.children[i]?.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+            track.children[i].scrollIntoView({ behavior: 'smooth', inline: 'center' });
             renderCarousel();
           });
         });
@@ -2343,21 +2343,21 @@
       }
 
       // Flèches carrousel
-      $('#carousel-prev')?.addEventListener('click', () => {
+      $('#carousel-prev').addEventListener('click', () => {
         const track = $('#carousel-track');
         _carouselIndex = Math.max(0, _carouselIndex - 1);
-        track.children[_carouselIndex]?.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+        track.children[_carouselIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
         $$('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === _carouselIndex));
       });
-      $('#carousel-next')?.addEventListener('click', () => {
+      $('#carousel-next').addEventListener('click', () => {
         const track = $('#carousel-track');
         _carouselIndex = Math.min(appState.docs.length - 1, _carouselIndex + 1);
-        track.children[_carouselIndex]?.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+        track.children[_carouselIndex].scrollIntoView({ behavior: 'smooth', inline: 'center' });
         $$('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === _carouselIndex));
       });
 
       // Sync index carrousel au scroll (swipe)
-      $('#carousel-track')?.addEventListener('scrollend', () => {
+      $('#carousel-track').addEventListener('scrollend', () => {
         const track  = $('#carousel-track');
         const cards  = [...track.children];
         const center = track.scrollLeft + track.clientWidth / 2;
@@ -2531,14 +2531,14 @@
             <button class="bookmark-del" id="bk-del-${i}" title="Supprimer">✕</button>
           </div>`).join('');
         bks.forEach((bk, i) => {
-          $(`#bk-item-${i}`)?.addEventListener('click', (e) => {
+          $(`#bk-item-${i}`).addEventListener('click', (e) => {
             if (e.target.closest('.bookmark-del')) return;
             appState.currentWordIndex = bk.wordIndex;
             if (appState.playing) { stopSpeechEngine(); setTimeout(() => startSpeechEngine(), 80); }
             else autoHighlightAndCenter(bk.wordIndex);
             toast(`📍 Reprise au marque-page ${bk.pct}%`);
           });
-          $(`#bk-del-${i}`)?.addEventListener('click', () => {
+          $(`#bk-del-${i}`).addEventListener('click', () => {
             const updated = _getBookmarks(docId).filter((_, j) => j !== i);
             _saveBookmarks(docId, updated);
             renderBookmarks();
@@ -2547,7 +2547,7 @@
         if (window.lucide) lucide.createIcons();
       }
 
-      $('#bookmark-add-btn')?.addEventListener('click', () => {
+      $('#bookmark-add-btn').addEventListener('click', () => {
         const docId = appState.currentDocId;
         if (!docId || !appState.wordsArray.length) return toast("Aucun document actif.");
         const idx     = appState.currentWordIndex;
@@ -2577,16 +2577,16 @@
         toast(`🔖 Marque-page ajouté à ${pct}%`);
       });
 
-      $('#bookmarks-close')?.addEventListener('click', () => {
+      $('#bookmarks-close').addEventListener('click', () => {
         const panel = $('#bookmarks-panel');
         if (panel) panel.style.display = 'none';
       });
 
       // ─── #7 PARTAGE ──────────────────────────────────────────────────────────
       // Bouton aide (top-bar)
-      $('#help-btn')?.addEventListener('click', () => navigate('help'));
+      $('#help-btn').addEventListener('click', () => navigate('help'));
 
-      $('#share-btn')?.addEventListener('click', async () => {
+      $('#share-btn').addEventListener('click', async () => {
         const doc  = appState.docs.find(d => d.id === appState.currentDocId);
         const url  = 'https://laurent-67370.github.io/speechify-pwa/';
         const text = doc ? `J'écoute "${doc.title}" sur SpeechifyPro` : 'SpeechifyPro — Lecteur audio de documents';
@@ -2674,7 +2674,7 @@
       });
 
       // Tonalité (pitch)
-      $('#pitch-range')?.addEventListener('input', (e) => {
+      $('#pitch-range').addEventListener('input', (e) => {
         appState.pitch = parseFloat(e.target.value);
         $('#pitch-value').textContent = appState.pitch.toFixed(1);
         savePrefs();
@@ -2682,7 +2682,7 @@
       });
 
       // Pause entre paragraphes
-      $('#pause-range')?.addEventListener('input', (e) => {
+      $('#pause-range').addEventListener('input', (e) => {
         appState.pauseMs = parseInt(e.target.value);
         $('#pause-value').textContent = (appState.pauseMs / 1000).toFixed(1) + 's';
         savePrefs();
@@ -3083,7 +3083,7 @@
       }
 
       // Modifier l'objectif au tap
-      $('#daily-target')?.addEventListener('click', () => {
+      $('#daily-target').addEventListener('click', () => {
         const val = prompt(`Objectif quotidien (minutes) :`, appState.dailyGoalMin);
         const n   = parseInt(val);
         if (n > 0 && n <= 480) {
@@ -3177,7 +3177,7 @@
           if (el) { mainEl = el; break; }
         }
 
-        let text = (mainEl || doc2.body)?.innerText || (mainEl || doc2.body)?.textContent || '';
+        let text = (mainEl || doc2.body).innerText || (mainEl || doc2.body).textContent || '';
         // Nettoyer
         text = text
           .replace(/\t/g, ' ')
@@ -3186,8 +3186,8 @@
           .trim();
 
         // Titre
-        const h1    = doc2.querySelector('h1')?.textContent?.trim();
-        const title = h1 || doc2.title?.trim() || new URL(targetUrl).hostname;
+        const h1    = doc2.querySelector('h1').textContent.trim();
+        const title = h1 || doc2.title.trim() || new URL(targetUrl).hostname;
 
         return { text, title };
       }
@@ -3228,15 +3228,15 @@
         }
       }
 
-      $('#url-import-btn')?.addEventListener('click', () => {
+      $('#url-import-btn').addEventListener('click', () => {
         importFromUrl($('#url-import-input').value.trim());
       });
-      $('#url-import-input')?.addEventListener('keydown', (e) => {
+      $('#url-import-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') importFromUrl(e.target.value.trim());
       });
 
       // ─── #3 OCR IMAGE (Tesseract.js) ─────────────────────────────────────────
-      $('#file-loader-ocr')?.addEventListener('change', (e) => {
+      $('#file-loader-ocr').addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
         if (!file.type.startsWith('image/')) {
@@ -3333,12 +3333,12 @@
         }
       }
 
-      $('#ob-next')?.addEventListener('click', () => {
+      $('#ob-next').addEventListener('click', () => {
         _obStep++;
         if (_obStep >= ONBOARDING_STEPS.length) { _closeOnboarding(); return; }
         _renderOnboardingStep(_obStep);
       });
-      $('#ob-skip')?.addEventListener('click', _closeOnboarding);
+      $('#ob-skip').addEventListener('click', _closeOnboarding);
 
       // ─── #10 STATISTIQUES DÉTAILLÉES ─────────────────────────────────────────
       function _getWeekData() {
@@ -3675,19 +3675,19 @@
         });
       }
 
-      $('#lib-modal-close')?.addEventListener('click', () => {
+      $('#lib-modal-close').addEventListener('click', () => {
         $('#lib-modal').classList.remove('active');
       });
-      $('#lib-modal')?.addEventListener('click', (e) => {
+      $('#lib-modal').addEventListener('click', (e) => {
         if (e.target === $('#lib-modal')) $('#lib-modal').classList.remove('active');
       });
 
       // Recherche
-      $('#lib-search')?.addEventListener('input', (e) => {
+      $('#lib-search').addEventListener('input', (e) => {
         _libSearchQuery = e.target.value;
         renderLibrary();
       });
-      $('#lib-search-btn')?.addEventListener('click', () => {
+      $('#lib-search-btn').addEventListener('click', () => {
         _libSearchQuery = $('#lib-search').value;
         renderLibrary();
       });
@@ -3724,8 +3724,8 @@
 
         // Restaurer pause
         if ($('#pause-range')) {
-          $('#pause-range').value = appState.pauseMs ?? 400;
-          $('#pause-value').textContent = ((appState.pauseMs ?? 400) / 1000).toFixed(1) + 's';
+          $('#pause-range').value = (appState.pauseMs != null ? appState.pauseMs : 400);
+          $('#pause-value').textContent = (((appState.pauseMs != null ? appState.pauseMs : 400)) / 1000).toFixed(1) + 's';
         }
 
         // Restaurer mode lecture
