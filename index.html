@@ -2832,9 +2832,11 @@
 
         const wa = appState.wordsArray;
         const winEnd = _zenWinStart + ZEN_WINDOW;
+        let needsRebuild = false;
 
         // Si le mot sort de la fenêtre → re-rendre autour du nouveau mot
         if (index < _zenWinStart + 20 || index > winEnd - 20) {
+          needsRebuild = true;
           _zenWinStart = Math.max(0, index - 80);
           const newEnd = Math.min(wa.length, _zenWinStart + ZEN_WINDOW);
           const slice  = wa.slice(_zenWinStart, newEnd);
@@ -2863,14 +2865,21 @@
           else if (id === index) s.classList.add('word-highlight');
         });
 
-        // Scroll vers le mot actif
-        const node = document.getElementById('zword-' + index);
-        if (node && box) {
-          let offsetTop = 0;
-          let el = node;
-          while (el && el !== box) { offsetTop += el.offsetTop; el = el.offsetParent; }
-          box.scrollTo({ top: Math.max(0, offsetTop - box.clientHeight / 2 + node.clientHeight / 2), behavior: 'smooth' });
-        }
+        // Scroll vers le mot actif — attendre que le DOM soit rendu
+        const _zenScrollToWord = (idx) => {
+          const node2 = document.getElementById('zword-' + idx);
+          if (!node2 || !box) return;
+          // Scroll instantané lors d'une reconstruction de fenêtre
+          const scrollBehavior = needsRebuild ? 'auto' : 'smooth';
+          const nodeTop = node2.offsetTop;
+          const target  = Math.max(0, nodeTop - box.clientHeight / 2 + node2.offsetHeight / 2);
+          box.scrollTo({ top: target, behavior: scrollBehavior });
+        };
+
+        // Utiliser requestAnimationFrame pour laisser le navigateur rendre d'abord
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => _zenScrollToWord(index));
+        });
 
         // Progression
         if (wa.length) {
