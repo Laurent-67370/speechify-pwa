@@ -1119,7 +1119,7 @@
             background:linear-gradient(to top, var(--color-surface) 60%, transparent);
             z-index:10; pointer-events:none;
           ">
-            <button onclick="openDocViewer()" style="
+            <button onclick="window.openDocViewer()" style="
               pointer-events:all;
               padding:10px 22px; border-radius:24px;
               background:var(--color-primary); color:#fff;
@@ -3834,7 +3834,7 @@
       });
 
       // Bouton viewer de document
-      $('#view-doc-btn')?.addEventListener('click', () => openDocViewer());
+      $('#view-doc-btn')?.addEventListener('click', () => window.openDocViewer());
 
       // Toggle panneau réglages
       let _settingsOpen = true;
@@ -4761,6 +4761,11 @@
         document.getElementById('dv-search-input').value = '';
         _dv.doc = null;
       }
+      // Exposer globalement pour onclick HTML et accès hors DCL
+      window.openDocViewer  = openDocViewer;
+      window.closeDocViewer = closeDocViewer;
+
+
 
       // ── PDF ─────────────────────────────────────────────────────
       async function _dvLoadPdf(base64) {
