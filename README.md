@@ -1,6 +1,6 @@
 # SpeechifyPro PWA
 
-Application web progressive (PWA) de lecture audio de documents avec surlignage synchronisé, librairie Gutenberg intégrée et support des gros romans sans freeze.
+Application web progressive (PWA) de lecture audio de documents avec surlignage synchronisé, **lecteur de documents intégré** (PDF/EPUB/TXT), librairie Gutenberg et support des gros romans sans freeze.
 
 **URL** : https://laurent-67370.github.io/speechify-pwa/
 
@@ -21,11 +21,26 @@ Application web progressive (PWA) de lecture audio de documents avec surlignage 
 - Synthèse vocale Web Speech API
 - Sélecteur de voix trié par qualité (⭐ Google HD en premier)
 - Retry auto ×15 + bouton 🔄 Actualiser
+- **Watchdog anti-coupure** — relance automatique si la synthèse s'arrête silencieusement
+- **Reprise après appel** — détection visibilitychange, reprise auto au retour en premier plan
+- **Préprocesseur TTS** — ponctuation typographique, abréviations (M., Mme…), unités (%, €, km), pauses modulées selon la ponctuation
 - Vitesse 0.5x–3x **par document** (mémorisée)
 - Tonalité (pitch) 0.5–2.0
 - Pause configurable entre paragraphes
 - Mode lecture **Par phrase** (fluide Android) ou **Par §**
 - Skip ±15 secondes
+- Sauvegarde de la position à **chaque segment** (chunk)
+
+### 📖 Lecteur de documents (viewer)
+- **Fenêtre plein écran** dédiée à la lecture visuelle, indépendante du lecteur audio
+- **PDF** — rendu page par page sur canvas (PDF.js), identique à l'original
+- **EPUB** — navigation par chapitres avec sommaire (icône ☰), titres extraits du manifest OPF
+- **TXT / Web / fallback** — texte reformaté avec détection titres/paragraphes, 4 tailles de police (A+/A−)
+- **Navigation** : flèches ‹ ›, swipe gauche/droite, barre de progression cliquable
+- **Recherche** intégrée avec surlignage de tous les résultats et navigation ↑↓
+- Position (page PDF / chapitre EPUB) mémorisée par document
+- Fichier original stocké en base64 dans IndexedDB à l'import (pour le rendu visuel)
+- Accès : bouton **Voir** (header page Lire), **Visualiser le document** (sous les contrôles), ou icône 📖 sur les cartes de la bibliothèque
 
 ### 🖊️ Surlignage synchronisé
 - **Fenêtre glissante 600 mots** — aucun freeze quelle que soit la taille du document
@@ -37,6 +52,7 @@ Application web progressive (PWA) de lecture audio de documents avec surlignage 
 - Fond noir total, téléprompter centré
 - **Fenêtre glissante 400 mots** — stable même sur romans de 200 000 mots
 - Reconstruction automatique de la fenêtre à chaque avancée
+- **Gestes swipe** : gauche = +15s, droite = −15s, bas = fermer, tap = play/pause
 - Barre de progression, contrôles intégrés
 
 ### 📚 Librairie gratuite (Gutenberg)
@@ -76,9 +92,10 @@ Application web progressive (PWA) de lecture audio de documents avec surlignage 
 - Page Aide complète (❓ top-bar)
 
 ### 💾 Stockage & persistance
-- Documents → IndexedDB
+- Documents → IndexedDB (texte + fichier original PDF/EPUB en base64 pour le viewer)
 - Préférences → localStorage (thème, vitesse, voix, position, objectif)
 - Vitesse mémorisée par document
+- Position viewer (page PDF / chapitre EPUB) par document
 - Marque-pages par document
 
 ---
@@ -91,7 +108,8 @@ Application web progressive (PWA) de lecture audio de documents avec surlignage 
 speechify-pwa/
 ├── index.html       — App complète (HTML + CSS + JS, ~94k chars)
 ├── catalog.js       — Catalogue Gutenberg + fonctions librairie (~15k chars)
-├── sw.js            — Service Worker v4 (cache offline + notifications)
+├── functions.js     — Fonctions utilitaires (~53k chars)
+├── sw.js            — Service Worker v6 (cache offline + notifications)
 ├── manifest.json    — Manifest PWA
 ├── README.md
 └── icons/
@@ -116,7 +134,7 @@ automatiquement à chaque avancée de la lecture.
 | Composant | Technologie |
 |-----------|-------------|
 | Synthèse vocale | Web Speech API |
-| Extraction PDF | PDF.js 3.4 |
+| Extraction & rendu PDF | PDF.js 3.4 (texte + canvas viewer) |
 | OCR image | Tesseract.js 5 |
 | Import EPUB | JSZip 3.10 |
 | Import URL | Proxy PHP lhusser.fr + fallbacks CORS |
@@ -125,7 +143,7 @@ automatiquement à chaque avancée de la lecture.
 | Préférences | localStorage |
 | Icônes UI | Lucide Icons + SVG inline nav |
 | Polices | Satoshi (Fontshare) |
-| Offline | Service Worker Cache-First v4 |
+| Offline | Service Worker Cache-First v6 |
 | Notifications | Service Worker Push API |
 
 **Compatibilité** : Chrome Android ✅ · Safari iOS ✅ · Firefox ✅ · Chrome desktop ✅
@@ -192,6 +210,12 @@ Sur Xiaomi HyperOS, essayer **Microsoft Edge** pour accéder aux voix neurales H
 | v27 | Retry voix ×15, bouton Actualiser |
 | v28 | Page Aide complète — **base stable** |
 | v29–v31 | Librairie Gutenberg, import EPUB, fenêtre glissante anti-freeze |
+| v32 | Aide v2 (accordéons natifs, recherche, chips de navigation) |
+| v33 | Robustesse audio : watchdog anti-coupure, reprise après appel, save/chunk |
+| v34 | Qualité TTS : préprocesseur ponctuation/abréviations/unités, pauses modulées |
+| v35 | Optimisations : optional chaining, savePrefs debounce, renderAll conditionnelle |
+| v36 | Optimisations : event delegation, spanMap highlight, CSS nettoyé |
+| v37 | **Lecteur de documents** — viewer PDF (canvas), EPUB (chapitres), TXT, recherche, swipe |
 
 ---
 
