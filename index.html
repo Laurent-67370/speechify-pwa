@@ -1097,6 +1097,10 @@
               <span>Mode Zen</span>
             </button>
 
+            <button class="reader-action-btn" id="ai-summary-btn">
+              <i data-lucide="sparkles"></i>
+              <span>Résumé IA</span>
+            </button>
             <button class="reader-action-btn" id="export-audio-btn">
               <i data-lucide="download"></i>
               <span>Exporter</span>
@@ -1809,16 +1813,61 @@
       <!-- RÉSUMÉ IA -->
       <div class="page" data-route="summary">
         <div class="page-header">
-          <h1 class="page-title">Résumé IA</h1>
+          <h1 class="page-title">🤖 Résumé IA</h1>
           <p class="page-subtitle" id="summary-doc-title">—</p>
         </div>
+
+        <!-- Bouton génération + config -->
+        <div class="card" style="margin-bottom:var(--space-4);">
+          <button id="ai-generate-btn" style="width:100%;padding:14px;border-radius:14px;border:none;background:var(--color-primary);color:#fff;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 12px rgba(124,108,255,.4);">
+            <i data-lucide="sparkles" style="width:18px;height:18px;"></i>
+            <span id="ai-generate-label">Générer le résumé IA</span>
+          </button>
+          <div id="ai-status" style="display:none;margin-top:12px;font-size:13px;color:var(--color-text-muted);text-align:center;"></div>
+          <button id="ai-config-btn" style="width:100%;margin-top:10px;padding:8px;border-radius:10px;border:1.5px solid var(--color-border);background:transparent;color:var(--color-text-faint);font-size:12px;cursor:pointer;">
+            ⚙️ Configurer l'IA
+          </button>
+        </div>
+
+        <!-- Config IA (masquée) -->
+        <div class="card" id="ai-config-panel" style="display:none;margin-bottom:var(--space-4);">
+          <div style="font-weight:700;margin-bottom:12px;font-size:14px;">⚙️ Configuration IA</div>
+          <label style="font-size:12px;color:var(--color-text-faint);display:block;margin-bottom:4px;">Fournisseur</label>
+          <select id="ai-provider" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--color-border);background:var(--color-surface-2);color:var(--color-text);font-size:13px;margin-bottom:12px;">
+            <option value="gemini">Google Gemini (gratuit)</option>
+            <option value="zai">Z.AI GLM</option>
+            <option value="openai">OpenAI / compatible</option>
+            <option value="custom">Endpoint personnalisé</option>
+          </select>
+          <label style="font-size:12px;color:var(--color-text-faint);display:block;margin-bottom:4px;">Clé API</label>
+          <input id="ai-key" type="password" placeholder="Votre clé API…" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--color-border);background:var(--color-surface-2);color:var(--color-text);font-size:13px;margin-bottom:12px;">
+          <label style="font-size:12px;color:var(--color-text-faint);display:block;margin-bottom:4px;">Modèle</label>
+          <input id="ai-model" type="text" placeholder="gemini-2.0-flash" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--color-border);background:var(--color-surface-2);color:var(--color-text);font-size:13px;margin-bottom:12px;">
+          <div id="ai-custom-url-wrap" style="display:none;">
+            <label style="font-size:12px;color:var(--color-text-faint);display:block;margin-bottom:4px;">URL endpoint (compatible OpenAI)</label>
+            <input id="ai-custom-url" type="text" placeholder="https://api.exemple.com/v1/chat/completions" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid var(--color-border);background:var(--color-surface-2);color:var(--color-text);font-size:13px;margin-bottom:12px;">
+          </div>
+          <button id="ai-save-config" style="width:100%;padding:10px;border-radius:10px;border:none;background:var(--color-primary);color:#fff;font-weight:700;font-size:13px;cursor:pointer;">Enregistrer</button>
+          <div style="font-size:11px;color:var(--color-text-faint);margin-top:10px;line-height:1.5;">🔒 La clé est stockée localement sur cet appareil uniquement (localStorage). Gemini offre un quota gratuit sur <strong>aistudio.google.com</strong>.</div>
+        </div>
+
+        <!-- Résumé / TL;DR -->
+        <div class="card" id="ai-tldr-card" style="margin-bottom:var(--space-4);display:none;">
+          <div style="font-weight:700; margin-bottom:var(--space-3);display:flex;align-items:center;gap:6px;"><i data-lucide="zap" style="width:16px;height:16px;color:var(--color-primary);"></i> En bref</div>
+          <div id="ai-tldr" style="font-size:14px;line-height:1.7;color:var(--color-text);"></div>
+          <button id="ai-listen-tldr" style="margin-top:12px;padding:8px 16px;border-radius:20px;border:1.5px solid var(--color-primary);background:transparent;color:var(--color-primary);font-size:12px;font-weight:700;cursor:pointer;">🔊 Écouter le résumé</button>
+        </div>
+
+        <!-- Points clés -->
         <div class="card" style="margin-bottom:var(--space-4);">
           <div style="font-weight:700; margin-bottom:var(--space-3);">Points clés</div>
-          <div id="summary-points"></div>
+          <div id="summary-points"><div style="color:var(--color-text-faint);font-size:13px;">Tap « Générer le résumé IA » pour analyser ce document.</div></div>
         </div>
+
+        <!-- Insights -->
         <div class="card">
           <div style="font-weight:700; margin-bottom:var(--space-3);">Insights</div>
-          <div id="insight-list"></div>
+          <div id="insight-list"><div style="color:var(--color-text-faint);font-size:13px;">—</div></div>
         </div>
       </div>
     </div><!-- .phone -->
@@ -3199,6 +3248,16 @@
 
         // ── Résumé (summary uniquement) ────────────────────────────────
         if (doc && route === 'summary') {
+          $('#summary-doc-title') && ($('#summary-doc-title').textContent = doc.title);
+          // Si déjà généré par IA, afficher directement
+          if (doc.aiGenerated && typeof _aiRenderSummary === 'function') {
+            _aiRenderSummary(doc);
+            const lbl = document.getElementById('ai-generate-label');
+            if (lbl) lbl.textContent = 'Régénérer le résumé IA';
+            return;
+          }
+        }
+        if (false && doc && route === 'summary') {
           $('#summary-doc-title').textContent = doc.title;
           $('#summary-points').innerHTML = doc.summary.map((s, i) => `
             <div class="summary-point" id="sm-pt-${i}">
@@ -3884,6 +3943,7 @@
 
       // Bouton viewer de document
       $('#view-doc-btn')?.addEventListener('click', () => window.openDocViewer());
+      $('#ai-summary-btn')?.addEventListener('click', () => navigate('summary'));
 
       // Toggle panneau réglages
       let _settingsOpen = true;
@@ -4814,6 +4874,231 @@
       // Exposer globalement pour onclick HTML et accès hors DCL
       window.openDocViewer  = openDocViewer;
       window.closeDocViewer = closeDocViewer;
+
+      // ═══════════════════════════════════════════════════════════
+      //  RÉSUMÉ IA — génération via API LLM
+      // ═══════════════════════════════════════════════════════════
+      const AI_DEFAULTS = {
+        gemini: { model: 'gemini-2.0-flash', url: '' },
+        zai:    { model: 'glm-4-flash', url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions' },
+        openai: { model: 'gpt-4o-mini', url: 'https://api.openai.com/v1/chat/completions' },
+        custom: { model: '', url: '' }
+      };
+
+      function _aiGetConfig() {
+        try {
+          return JSON.parse(localStorage.getItem('ai_config') || '{}');
+        } catch { return {}; }
+      }
+      function _aiSaveConfig(cfg) {
+        localStorage.setItem('ai_config', JSON.stringify(cfg));
+      }
+
+      function _aiInitConfigUI() {
+        const cfg = _aiGetConfig();
+        const provEl = document.getElementById('ai-provider');
+        const keyEl  = document.getElementById('ai-key');
+        const modEl  = document.getElementById('ai-model');
+        const urlEl  = document.getElementById('ai-custom-url');
+        if (!provEl) return;
+        if (cfg.provider) provEl.value = cfg.provider;
+        if (cfg.key)   keyEl.value = cfg.key;
+        if (cfg.model) modEl.value = cfg.model;
+        if (cfg.url)   urlEl.value = cfg.url;
+        _aiUpdateProviderUI();
+      }
+
+      function _aiUpdateProviderUI() {
+        const prov = document.getElementById('ai-provider')?.value || 'gemini';
+        const modEl = document.getElementById('ai-model');
+        const customWrap = document.getElementById('ai-custom-url-wrap');
+        if (customWrap) customWrap.style.display = (prov === 'custom' || prov === 'openai') ? 'block' : 'none';
+        if (modEl && !modEl.value) modEl.placeholder = AI_DEFAULTS[prov]?.model || '';
+      }
+
+      // ── Construire la requête selon le fournisseur ──────────────
+      async function _aiCallLLM(prompt, text) {
+        const cfg = _aiGetConfig();
+        if (!cfg.key) throw new Error('Aucune clé API configurée');
+        const prov  = cfg.provider || 'gemini';
+        const model = cfg.model || AI_DEFAULTS[prov].model;
+        // Limiter le texte envoyé (coût + limite tokens)
+        const maxChars = 24000;
+        const content = text.length > maxChars
+          ? text.slice(0, maxChars) + '\n\n[...texte tronqué pour l\'analyse...]'
+          : text;
+        const fullPrompt = prompt + '\n\n=== DOCUMENT ===\n' + content;
+
+        if (prov === 'gemini') {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cfg.key}`;
+          const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: fullPrompt }] }],
+              generationConfig: { temperature: 0.3, maxOutputTokens: 2048 }
+            }),
+            signal: AbortSignal.timeout(60000)
+          });
+          if (!resp.ok) {
+            const errTxt = await resp.text();
+            throw new Error(`Gemini ${resp.status}: ${errTxt.slice(0,120)}`);
+          }
+          const data = await resp.json();
+          return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        } else {
+          // Format OpenAI-compatible (OpenAI, Z.AI, custom)
+          const url = cfg.url || AI_DEFAULTS[prov].url;
+          const resp = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + cfg.key
+            },
+            body: JSON.stringify({
+              model,
+              messages: [{ role: 'user', content: fullPrompt }],
+              temperature: 0.3,
+              max_tokens: 2048
+            }),
+            signal: AbortSignal.timeout(60000)
+          });
+          if (!resp.ok) {
+            const errTxt = await resp.text();
+            throw new Error(`API ${resp.status}: ${errTxt.slice(0,120)}`);
+          }
+          const data = await resp.json();
+          return data.choices?.[0]?.message?.content || '';
+        }
+      }
+
+      // ── Générer le résumé du document courant ───────────────────
+      async function generateAISummary() {
+        const doc = appState.docs.find(d => d.id === appState.currentDocId);
+        if (!doc) { toast('❌ Aucun document sélectionné'); return; }
+        const cfg = _aiGetConfig();
+        if (!cfg.key) {
+          toast('⚙️ Configurez d\'abord votre clé API');
+          document.getElementById('ai-config-panel').style.display = 'block';
+          return;
+        }
+
+        const btn    = document.getElementById('ai-generate-btn');
+        const label  = document.getElementById('ai-generate-label');
+        const status = document.getElementById('ai-status');
+        btn.disabled = true;
+        label.textContent = 'Analyse en cours…';
+        status.style.display = 'block';
+        status.textContent = '🤖 L\'IA analyse votre document…';
+
+        const prompt = `Tu es un assistant qui analyse des documents. Analyse le texte ci-dessous et réponds UNIQUEMENT avec un objet JSON valide (sans backticks, sans texte autour) de cette forme exacte :
+{
+  "tldr": "Un résumé en 2-3 phrases du document.",
+  "points": [
+    { "headline": "Titre court du point clé", "detail": "Explication en 1-2 phrases." }
+  ],
+  "insights": [
+    { "headline": "Idée ou analyse", "detail": "Développement en 1-2 phrases." }
+  ]
+}
+Donne 4 à 6 points clés et 2 à 3 insights. Réponds en français.`;
+
+        try {
+          const raw = await _aiCallLLM(prompt, doc.content);
+          // Extraire le JSON (au cas où il y a des backticks)
+          let jsonStr = raw.trim().replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '');
+          const firstBrace = jsonStr.indexOf('{');
+          const lastBrace = jsonStr.lastIndexOf('}');
+          if (firstBrace >= 0 && lastBrace > firstBrace) {
+            jsonStr = jsonStr.slice(firstBrace, lastBrace + 1);
+          }
+          const result = JSON.parse(jsonStr);
+
+          // Sauvegarder dans le doc
+          doc.aiTldr     = result.tldr || '';
+          doc.summary    = result.points || [];
+          doc.insights   = result.insights || [];
+          doc.aiGenerated = true;
+          await saveDoc(doc);
+
+          _aiRenderSummary(doc);
+          status.textContent = '✅ Résumé généré';
+          setTimeout(() => { status.style.display = 'none'; }, 3000);
+          toast('✨ Résumé IA généré');
+        } catch (e) {
+          console.warn('[AI] Erreur:', e);
+          status.textContent = '❌ ' + e.message;
+          toast('❌ Échec : ' + e.message.slice(0, 60));
+        } finally {
+          btn.disabled = false;
+          label.textContent = 'Régénérer le résumé IA';
+        }
+      }
+
+      // ── Afficher le résumé ──────────────────────────────────────
+      function _aiRenderSummary(doc) {
+        const tldrCard = document.getElementById('ai-tldr-card');
+        const tldrEl   = document.getElementById('ai-tldr');
+        if (doc.aiTldr && tldrEl) {
+          tldrEl.textContent = doc.aiTldr;
+          tldrCard.style.display = 'block';
+        }
+        const ptsEl = document.getElementById('summary-points');
+        if (ptsEl && doc.summary?.length) {
+          ptsEl.innerHTML = doc.summary.map((s, i) => `
+            <div class="summary-point" id="sm-pt-${i}">
+              <strong>${(s.headline||'').replace(/</g,'&lt;')}</strong>
+              <div class="point-detail">${(s.detail||'').replace(/</g,'&lt;')}</div>
+            </div>`).join('');
+        }
+        const insEl = document.getElementById('insight-list');
+        if (insEl) {
+          insEl.innerHTML = doc.insights?.length
+            ? doc.insights.map((ins, i) => `
+              <div class="insight-point" id="ins-pt-${i}">
+                <strong>${(ins.headline||'').replace(/</g,'&lt;')}</strong>
+                <div class="point-detail">${(ins.detail||'').replace(/</g,'&lt;')}</div>
+              </div>`).join('')
+            : '<div style="color:var(--color-text-faint);font-size:13px;">—</div>';
+        }
+        if (window.lucide) lucide.createIcons();
+      }
+
+      // ── Listeners config + génération ───────────────────────────
+      document.getElementById('ai-generate-btn')?.addEventListener('click', generateAISummary);
+      document.getElementById('ai-config-btn')?.addEventListener('click', () => {
+        const panel = document.getElementById('ai-config-panel');
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        _aiInitConfigUI();
+      });
+      document.getElementById('ai-provider')?.addEventListener('change', _aiUpdateProviderUI);
+      document.getElementById('ai-save-config')?.addEventListener('click', () => {
+        const cfg = {
+          provider: document.getElementById('ai-provider').value,
+          key:      document.getElementById('ai-key').value.trim(),
+          model:    document.getElementById('ai-model').value.trim(),
+          url:      document.getElementById('ai-custom-url').value.trim()
+        };
+        _aiSaveConfig(cfg);
+        document.getElementById('ai-config-panel').style.display = 'none';
+        toast('✅ Configuration enregistrée');
+      });
+      document.getElementById('ai-listen-tldr')?.addEventListener('click', () => {
+        const doc = appState.docs.find(d => d.id === appState.currentDocId);
+        if (doc?.aiTldr) {
+          const u = new SpeechSynthesisUtterance(doc.aiTldr);
+          if (!synthVoices.length) synthVoices = window.speechSynthesis.getVoices();
+          const v = synthVoices.find(x => x.name === appState.selectedVoiceName);
+          if (v) u.voice = v;
+          u.rate = appState.speed; u.lang = v ? v.lang : 'fr-FR';
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(u);
+        }
+      });
+
+      window.generateAISummary = generateAISummary;
+
+
 
 
 
