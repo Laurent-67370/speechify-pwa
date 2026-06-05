@@ -1,6 +1,6 @@
 // ─── SpeechifyPro — Service Worker ───────────────────────────────────────────
-const CACHE_NAME    = 'speechify-v4';
-const CACHE_OFFLINE = 'speechify-offline-v4';
+const CACHE_NAME    = 'speechify-v5';
+const CACHE_OFFLINE = 'speechify-offline-v5';
 
 // Ressources à mettre en cache immédiatement à l'installation
 const PRECACHE_URLS = [
