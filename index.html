@@ -1064,9 +1064,20 @@
 
       <!-- READER (lecture plein écran) -->
       <div class="page" data-route="reader">
-        <div class="page-header">
-          <h1 class="page-title" id="full-reader-title">Lecture</h1>
-          <p class="page-subtitle" id="full-reader-meta">—</p>
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
+          <div style="flex:1;min-width:0;">
+            <h1 class="page-title" id="full-reader-title">Lecture</h1>
+            <p class="page-subtitle" id="full-reader-meta">—</p>
+          </div>
+          <button id="view-doc-btn" title="Visualiser le document"
+            style="flex-shrink:0;margin-top:4px;padding:8px 14px;border-radius:20px;
+                   background:var(--color-primary);color:#fff;border:none;
+                   font-size:13px;font-weight:700;cursor:pointer;
+                   display:flex;align-items:center;gap:6px;white-space:nowrap;
+                   box-shadow:0 2px 12px rgba(124,108,255,.4);">
+            <i data-lucide="book-open" style="width:15px;height:15px;"></i>
+            Voir
+          </button>
         </div>
         <div class="card">
 
@@ -1085,10 +1096,7 @@
               <i data-lucide="eye-off"></i>
               <span>Mode Zen</span>
             </button>
-            <button class="reader-action-btn" id="view-doc-btn">
-              <i data-lucide="book-open"></i>
-              <span>Visualiser</span>
-            </button>
+
             <button class="reader-action-btn" id="export-audio-btn">
               <i data-lucide="download"></i>
               <span>Exporter</span>
@@ -1100,6 +1108,28 @@
             <button class="reader-action-btn" id="settings-toggle-btn">
               <i data-lucide="settings-2"></i>
               <span>Réglages</span>
+            </button>
+          </div>
+
+          <!-- FAB Visualiser document -->
+          <div id="reader-view-fab" style="
+            position:sticky; bottom:0; left:0; right:0;
+            display:flex; justify-content:center;
+            padding:10px 0 4px;
+            background:linear-gradient(to top, var(--color-surface) 60%, transparent);
+            z-index:10; pointer-events:none;
+          ">
+            <button onclick="openDocViewer()" style="
+              pointer-events:all;
+              padding:10px 22px; border-radius:24px;
+              background:var(--color-primary); color:#fff;
+              border:none; font-size:14px; font-weight:700;
+              display:flex; align-items:center; gap:8px;
+              box-shadow:0 4px 16px rgba(124,108,255,.45);
+              cursor:pointer; transition:transform .15s, box-shadow .15s;
+            " onactive="this.style.transform='scale(.96)'">
+              <i data-lucide="book-open" style="width:16px;height:16px;"></i>
+              Visualiser le document
             </button>
           </div>
 
