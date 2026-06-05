@@ -1159,6 +1159,32 @@
               <select id="voice-select" style="width:100%; background:var(--color-surface-2); border:1.5px solid var(--color-border); border-radius:var(--radius-md); padding:var(--space-2) var(--space-3); color:var(--color-text); font-family:var(--font-body); font-size:var(--text-xs);"></select>
             </div>
 
+            <!-- Voix premium Google Cloud TTS -->
+            <div class="settings-row" style="align-items:flex-start; flex-direction:column; gap:var(--space-2);">
+              <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+                <span class="settings-label">✨ Voix premium</span>
+                <span id="voice-mode-badge" style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:99px; background:var(--color-primary-soft); color:var(--color-text-faint);">📱 Système</span>
+              </div>
+              <button id="gtts-config-btn" style="width:100%; padding:8px; border-radius:10px; border:1.5px solid var(--color-border); background:transparent; color:var(--color-primary); font-size:12px; font-weight:700; cursor:pointer;">
+                ⚙️ Configurer Google Cloud TTS
+              </button>
+              <div id="gtts-panel" style="display:none; width:100%; background:var(--color-surface-2); border-radius:12px; padding:14px; margin-top:4px;">
+                <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:12px; cursor:pointer;">
+                  <input type="checkbox" id="gtts-enabled" style="width:18px; height:18px;">
+                  Activer les voix premium
+                </label>
+                <label style="font-size:11px; color:var(--color-text-faint); display:block; margin-bottom:4px;">Clé API Google Cloud</label>
+                <input id="gtts-key" type="password" placeholder="AIza…" style="width:100%; padding:9px; border-radius:8px; border:1.5px solid var(--color-border); background:var(--color-surface); color:var(--color-text); font-size:12px; margin-bottom:12px;">
+                <label style="font-size:11px; color:var(--color-text-faint); display:block; margin-bottom:4px;">Voix</label>
+                <select id="gtts-voice" style="width:100%; padding:9px; border-radius:8px; border:1.5px solid var(--color-border); background:var(--color-surface); color:var(--color-text); font-size:12px; margin-bottom:12px;"></select>
+                <div style="display:flex; gap:8px;">
+                  <button id="gtts-test" style="flex:1; padding:9px; border-radius:8px; border:1.5px solid var(--color-primary); background:transparent; color:var(--color-primary); font-size:12px; font-weight:700; cursor:pointer;">🔊 Tester la voix</button>
+                  <button id="gtts-save" style="flex:1; padding:9px; border-radius:8px; border:none; background:var(--color-primary); color:#fff; font-size:12px; font-weight:700; cursor:pointer;">Enregistrer</button>
+                </div>
+                <div style="font-size:10px; color:var(--color-text-faint); margin-top:10px; line-height:1.5;">🔒 Clé stockée localement. 1M caractères/mois gratuits sur Google Cloud. Active l'API "Cloud Text-to-Speech" dans la console GCP. ⚠️ Le surlignage mot-à-mot est approximatif en mode premium.</div>
+              </div>
+            </div>
+
             <!-- Vitesse -->
             <div class="settings-row">
               <span class="settings-label">⚡ Vitesse</span>
@@ -2439,6 +2465,7 @@
       }
 
       function stopSpeechEngine() {
+        if (typeof _gtts !== 'undefined' && _gtts.audio) { try { _gtts.audio.pause(); } catch(e){} _gtts.audio = null; }
         _stopKeepAlive();
         _clearWordTimers();
         _stopDailyTimer();
@@ -2740,7 +2767,11 @@
           updateControlsUI();
           _startKeepAlive();
           _startDailyTimer();
-          _speakChunk(0);
+          if (typeof _gttsEnabled === 'function' && _gttsEnabled()) {
+            _gttsSpeakChunk(0);
+          } else {
+            _speakChunk(0);
+          }
         }, 150);
       }
 
@@ -3944,6 +3975,12 @@
       // Bouton viewer de document
       $('#view-doc-btn')?.addEventListener('click', () => window.openDocViewer());
       $('#ai-summary-btn')?.addEventListener('click', () => navigate('summary'));
+      $('#gtts-config-btn')?.addEventListener('click', () => {
+        const p = document.getElementById('gtts-panel');
+        p.style.display = p.style.display === 'none' ? 'block' : 'none';
+        _gttsInitUI();
+      });
+      _updateVoiceModeBadge();
 
       // Toggle panneau réglages
       let _settingsOpen = true;
@@ -5097,6 +5134,209 @@ Donne 4 à 6 points clés et 2 à 3 insights. Réponds en français.`;
       });
 
       window.generateAISummary = generateAISummary;
+
+      // ═══════════════════════════════════════════════════════════
+      //  GOOGLE CLOUD TTS — voix premium (optionnel)
+      // ═══════════════════════════════════════════════════════════
+      const _gtts = {
+        audio: null,         // élément <audio> courant
+        cache: new Map(),    // cache chunkText → blobURL (session)
+      };
+
+      function _gttsConfig() {
+        try { return JSON.parse(localStorage.getItem('gtts_config') || '{}'); }
+        catch { return {}; }
+      }
+      function _gttsSaveConfig(c) { localStorage.setItem('gtts_config', JSON.stringify(c)); }
+      function _gttsEnabled() {
+        const c = _gttsConfig();
+        return !!(c.enabled && c.key);
+      }
+
+      // Générer l'audio d'un texte via Google Cloud TTS → renvoie un blob URL
+      async function _gttsSynthesize(text) {
+        const c = _gttsConfig();
+        if (!c.key) throw new Error('Clé Google TTS manquante');
+
+        // Cache de session
+        const cacheKey = (c.voice || '') + '|' + (appState.speed || 1) + '|' + text;
+        if (_gtts.cache.has(cacheKey)) return _gtts.cache.get(cacheKey);
+
+        const voiceName = c.voice || 'fr-FR-Neural2-A';
+        const langCode  = voiceName.split('-').slice(0, 2).join('-');
+        const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${c.key}`;
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            input: { text: text },
+            voice: { languageCode: langCode, name: voiceName },
+            audioConfig: {
+              audioEncoding: 'MP3',
+              speakingRate: Math.max(0.25, Math.min(4.0, appState.speed || 1.0)),
+              pitch: ((appState.pitch || 1) - 1) * 10   // 0.5-2.0 → -5..+10 approx
+            }
+          }),
+          signal: AbortSignal.timeout(30000)
+        });
+        if (!resp.ok) {
+          const t = await resp.text();
+          throw new Error(`Google TTS ${resp.status}: ${t.slice(0,100)}`);
+        }
+        const data = await resp.json();
+        if (!data.audioContent) throw new Error('Réponse audio vide');
+        // base64 → blob
+        const bin = atob(data.audioContent);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const blob = new Blob([bytes], { type: 'audio/mp3' });
+        const blobUrl = URL.createObjectURL(blob);
+        // Limiter le cache à 20 entrées
+        if (_gtts.cache.size > 20) {
+          const first = _gtts.cache.keys().next().value;
+          URL.revokeObjectURL(_gtts.cache.get(first));
+          _gtts.cache.delete(first);
+        }
+        _gtts.cache.set(cacheKey, blobUrl);
+        return blobUrl;
+      }
+
+      // Lire un chunk avec Google TTS (remplace speechSynthesis)
+      async function _gttsSpeakChunk(chunkIdx) {
+        if (!appState.playing || chunkIdx >= _chunks.length) {
+          const doc = appState.docs.find(d => d.id === appState.currentDocId);
+          stopSpeechEngine();
+          appState.currentWordIndex = 0;
+          renderTextInReader(false);
+          if (doc) _notifyReadingDone(doc.title);
+          return;
+        }
+        _chunkIndex = chunkIdx;
+        const chunk = _chunks[chunkIdx];
+        const status = document.getElementById('reader-status');
+
+        try {
+          if (status) status.textContent = '⏳ Génération voix premium…';
+          const blobUrl = await _gttsSynthesize(_ttsClean(chunk.text));
+          if (!appState.playing) return;  // arrêté pendant la génération
+
+          // Pré-charger le chunk suivant en arrière-plan (fluidité)
+          if (chunkIdx + 1 < _chunks.length) {
+            _gttsSynthesize(_ttsClean(_chunks[chunkIdx+1].text)).catch(()=>{});
+          }
+
+          if (status) status.textContent = 'Lecture en cours…';
+          if (_gtts.audio) { _gtts.audio.pause(); _gtts.audio = null; }
+          const audio = new Audio(blobUrl);
+          _gtts.audio = audio;
+
+          // Surlignage approximatif basé sur la durée
+          _scheduleHighlights(chunk);
+
+          audio.onended = () => {
+            if (!appState.playing) return;
+            _clearWordTimers();
+            const _docSnap = appState.docs.find(d => d.id === appState.currentDocId);
+            if (_docSnap && appState.wordsArray.length) {
+              _docSnap.wordIndex = appState.currentWordIndex;
+              _docSnap.progress  = Math.round((appState.currentWordIndex / appState.wordsArray.length) * 100);
+              saveDoc(_docSnap);
+            }
+            const lastChar = chunk.text.trimEnd().slice(-1);
+            const base = appState.pauseMs || 0;
+            const delay = chunk.endsWithParagraph ? base + 220 : /[.!?…]/.test(lastChar) ? base + 80 : base + 20;
+            setTimeout(() => _gttsSpeakChunk(chunkIdx + 1), delay);
+          };
+          audio.onerror = () => {
+            if (!appState.playing) return;
+            toast('⚠️ Erreur audio premium, segment suivant');
+            setTimeout(() => _gttsSpeakChunk(chunkIdx + 1), 200);
+          };
+          await audio.play();
+        } catch (e) {
+          console.warn('[GTTS] Erreur:', e);
+          toast('❌ Voix premium : ' + e.message.slice(0, 50));
+          // Fallback : repasser en voix système pour ce chunk
+          if (status) status.textContent = 'Repli voix système…';
+          stopSpeechEngine();
+        }
+      }
+
+      // ── Config UI ───────────────────────────────────────────────
+      const GTTS_VOICES = [
+        { id: 'fr-FR-Neural2-A', label: '🇫🇷 Denise (femme, Neural2)' },
+        { id: 'fr-FR-Neural2-B', label: '🇫🇷 Henri (homme, Neural2)' },
+        { id: 'fr-FR-Neural2-C', label: '🇫🇷 Claire (femme, Neural2)' },
+        { id: 'fr-FR-Neural2-D', label: '🇫🇷 Lucas (homme, Neural2)' },
+        { id: 'fr-FR-Wavenet-A',  label: '🇫🇷 WaveNet A (femme)' },
+        { id: 'fr-FR-Wavenet-B',  label: '🇫🇷 WaveNet B (homme)' },
+        { id: 'en-US-Neural2-F',  label: '🇺🇸 Jenny (femme, EN)' },
+        { id: 'en-US-Neural2-D',  label: '🇺🇸 Guy (homme, EN)' },
+        { id: 'es-ES-Neural2-A',  label: '🇪🇸 Espagnol (femme)' },
+        { id: 'de-DE-Neural2-B',  label: '🇩🇪 Allemand (homme)' },
+        { id: 'it-IT-Neural2-A',  label: '🇮🇹 Italien (femme)' }
+      ];
+
+      function _gttsInitUI() {
+        const c = _gttsConfig();
+        const enEl  = document.getElementById('gtts-enabled');
+        const keyEl = document.getElementById('gtts-key');
+        const vEl   = document.getElementById('gtts-voice');
+        if (!enEl) return;
+        enEl.checked = !!c.enabled;
+        if (c.key) keyEl.value = c.key;
+        if (vEl && !vEl.options.length) {
+          vEl.innerHTML = GTTS_VOICES.map(v => `<option value="${v.id}">${v.label}</option>`).join('');
+        }
+        if (c.voice && vEl) vEl.value = c.voice;
+      }
+
+      document.getElementById('gtts-save')?.addEventListener('click', () => {
+        _gttsSaveConfig({
+          enabled: document.getElementById('gtts-enabled').checked,
+          key:     document.getElementById('gtts-key').value.trim(),
+          voice:   document.getElementById('gtts-voice').value
+        });
+        document.getElementById('gtts-panel').style.display = 'none';
+        const on = _gttsEnabled();
+        toast(on ? '✨ Voix premium activée' : 'Voix système active');
+        _updateVoiceModeBadge();
+      });
+
+      document.getElementById('gtts-test')?.addEventListener('click', async () => {
+        const btn = document.getElementById('gtts-test');
+        btn.textContent = '⏳ Test…';
+        try {
+          // Sauvegarder temporairement pour le test
+          _gttsSaveConfig({
+            enabled: true,
+            key: document.getElementById('gtts-key').value.trim(),
+            voice: document.getElementById('gtts-voice').value
+          });
+          const url = await _gttsSynthesize('Bonjour, ceci est un test de la voix premium.');
+          const a = new Audio(url);
+          await a.play();
+          btn.textContent = '✅ Test réussi';
+        } catch (e) {
+          btn.textContent = '❌ Échec';
+          toast('Erreur : ' + e.message.slice(0, 60));
+        }
+        setTimeout(() => { btn.textContent = '🔊 Tester la voix'; }, 3000);
+      });
+
+      function _updateVoiceModeBadge() {
+        const badge = document.getElementById('voice-mode-badge');
+        if (badge) {
+          const on = _gttsEnabled();
+          badge.textContent = on ? '✨ Premium' : '📱 Système';
+          badge.style.color = on ? 'var(--color-primary)' : 'var(--color-text-faint)';
+        }
+      }
+
+      window._gttsEnabled = _gttsEnabled;
+      window._gttsSpeakChunk = _gttsSpeakChunk;
+
+
 
 
 
